@@ -254,7 +254,7 @@ async function onMoodSubmit(data: { level: number; memo: string | null }) {
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   text-align: center;
   margin-bottom: 4px;
