@@ -3,7 +3,12 @@
     <h1 class="page-title">きぶんマップ</h1>
 <div v-if="loading" class="loading">読み込み中...</div>
     <div v-else-if="moods.length === 0" class="empty">位置情報付きの記録がありません</div>
-    <div v-else id="mood-map" ref="mapContainer" class="map-container"></div>
+    <div v-else class="map-wrapper">
+      <div id="mood-map" ref="mapContainer" class="map-container"></div>
+      <button class="gps-btn" @click="moveToCurrentLocation" :disabled="gpsLoading">
+        {{ gpsLoading ? '...' : '📍' }}
+      </button>
+    </div>
 
     <!-- 詳細ボトムシート -->
     <Teleport to="body">
@@ -99,6 +104,23 @@ const detailPlaceName = ref('')
 const detailAvg = ref(0)
 const detailMoods = ref<Mood[]>([])
 let mapInstance: google.maps.Map | null = null
+const gpsLoading = ref(false)
+
+function moveToCurrentLocation() {
+  if (!navigator.geolocation || !mapInstance) return
+  gpsLoading.value = true
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      mapInstance?.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      mapInstance?.setZoom(15)
+      gpsLoading.value = false
+    },
+    () => {
+      gpsLoading.value = false
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  )
+}
 
 function groupByPlace(moodList: Mood[]): PlaceGroup[] {
   const map = new Map<number, PlaceGroup>()
@@ -247,12 +269,44 @@ onMounted(async () => {
   font-size: 15px;
 }
 
-.map-container {
+.map-wrapper {
   flex: 1;
   min-height: 0;
+  position: relative;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.gps-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.gps-btn:active {
+  background: #f0f0f0;
+}
+
+.gps-btn:disabled {
+  opacity: 0.5;
 }
 
 /* ボトムシート */
