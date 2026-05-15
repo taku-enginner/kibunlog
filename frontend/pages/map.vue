@@ -6,7 +6,8 @@
     <div v-else class="map-wrapper">
       <div id="mood-map" ref="mapContainer" class="map-container"></div>
       <button class="gps-btn" @click="moveToCurrentLocation" :disabled="gpsLoading">
-        {{ gpsLoading ? '...' : '📍' }}
+        <svg v-if="!gpsLoading" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+        <span v-else>...</span>
       </button>
     </div>
 
@@ -293,7 +294,7 @@ onMounted(async () => {
   background: #fff;
   border: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  font-size: 20px;
+  color: #333;
   cursor: pointer;
   display: flex;
   align-items: center;
