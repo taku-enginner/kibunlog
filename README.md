@@ -1,47 +1,52 @@
 # きぶんログ
 
-毎朝1分で気分を3段階（良い / 普通 / しんどい）で記録し、傾向を可視化するWebアプリ。
-
-## 目的
-
-- 日々の体調傾向を把握する
-- 2日以上連続で「普通以下」が続いたら黄色信号として表示する
-- 将来的に「来週やばいかどうか」を判断できるようにする
+気分を記録し、場所・時間ごとの傾向を可視化するWebアプリ。
 
 ## 技術スタック
 
 - Frontend: Nuxt 3
 - Backend: Python (FastAPI)
 - DB: MySQL 8.4
-- インフラ: Docker Compose / Tailscale経由でアクセス
-
-## アーキテクチャ判断
-
-### なぜDocker Composeか
-
-devboxはPython/Node.jsなどの開発ツール管理に使い、実行環境はDocker Composeにまとめる方針。
-
-理由:
-- `docker compose up` 一発で MySQL + Backend + Frontend が起動する
-- 別のPCでもすぐ再現できる
-- Tailscaleで他端末からアクセスするときにポート管理がシンプル
-- 長期運用で安定する
-
-### なぜdevboxも残すか
-
-ローカル開発時にPython/Node.jsのバージョンを固定するために使う。
-実行はDocker Compose、開発はdevbox shell内で行う。
+- 地図: Google Maps JavaScript API / Places API (New)
+- インフラ: Docker Compose / Caddy (HTTPS) / Tailscale
 
 ## 画面構成
 
-1. **記録画面 (/)** - 3段階をタップするだけ。朝1回の記録用
-2. **グラフ画面 (/graph)** - 直近30日の気分推移を折れ線グラフで表示
+1. **記録 (/)** - 今日の平均スコア + 7日ミニグラフ + 記録ボタン
+2. **グラフ (/graph)** - 気分推移の折れ線グラフ（2週間〜3年）
+3. **履歴 (/timeline)** - 「今日」タブ（カード一覧・編集・削除）と「履歴」タブ（全記録・フィルター）
+4. **マップ (/map)** - 場所ごとにピン集約（色=平均気分、サイズ=記録数）
 
 ## 起動方法
 
+### Mac（ローカル検証）
+
 ```bash
-docker compose up -d
+docker compose -f docker-compose.mac.yml up -d --build
 ```
 
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
+- Frontend: http://localhost:23000
+- Backend: http://localhost:28000
+- MySQL: localhost:23306
+
+### Debian（本番）
+
+```bash
+docker compose -f docker-compose.debian.yml up -d --build
+```
+
+Caddy経由でHTTPSアクセス。
+
+### 停止
+
+```bash
+docker compose -f docker-compose.<mac|debian>.yml down
+```
+
+## E2Eテスト
+
+```bash
+BASE_URL=http://localhost:3001 API_URL=http://localhost:18000 node scripts/e2e-test.mjs
+```
+
+devbox環境（フロント3001、バックエンド18000）で実行。
