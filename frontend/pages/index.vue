@@ -34,7 +34,7 @@
           v-model="memo"
           class="memo-input"
           placeholder="メモ（任意）"
-          rows="2"
+          rows="5"
         />
         <button class="save-btn" :disabled="saving" @click="recordMood">
           {{ saving ? '保存中...' : '記録する' }}
