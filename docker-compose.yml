@@ -28,7 +28,7 @@ services:
   frontend:
     build: ./frontend
     environment:
-      NUXT_PUBLIC_API_BASE: https://debian.tail69d614.ts.net
+      NUXT_PUBLIC_API_BASE: https://debian.tail69d614.ts.net:8443
     depends_on:
       - backend
 
