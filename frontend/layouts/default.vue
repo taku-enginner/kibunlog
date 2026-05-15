@@ -20,6 +20,10 @@
         <span class="nav-icon">📋</span>
         <span class="nav-label">履歴</span>
       </NuxtLink>
+      <NuxtLink to="/map" class="nav-item" :class="{ active: route.path === '/map' }">
+        <span class="nav-icon">🗺️</span>
+        <span class="nav-label">マップ</span>
+      </NuxtLink>
     </nav>
   </div>
 </template>

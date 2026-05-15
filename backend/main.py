@@ -71,12 +71,16 @@ class MoodIn(BaseModel):
     date: str
     level: int
     memo: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class MoodOut(BaseModel):
     date: str
     level: int
     memo: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 @app.post("/moods", response_model=MoodOut)
@@ -93,12 +97,20 @@ def record_mood(
     if mood:
         mood.level = body.level
         mood.memo = body.memo
+        mood.latitude = body.latitude
+        mood.longitude = body.longitude
     else:
-        mood = Mood(user_id=user.id, date=body.date, level=body.level, memo=body.memo)
+        mood = Mood(
+            user_id=user.id, date=body.date, level=body.level, memo=body.memo,
+            latitude=body.latitude, longitude=body.longitude,
+        )
         db.add(mood)
     db.commit()
     db.refresh(mood)
-    return MoodOut(date=mood.date, level=mood.level, memo=mood.memo)
+    return MoodOut(
+        date=mood.date, level=mood.level, memo=mood.memo,
+        latitude=mood.latitude, longitude=mood.longitude,
+    )
 
 
 @app.get("/moods", response_model=list[MoodOut])
@@ -114,4 +126,35 @@ def get_moods(
     if to_date:
         q = q.filter(Mood.date <= to_date)
     rows = q.order_by(Mood.date).all()
-    return [MoodOut(date=r.date, level=r.level, memo=r.memo) for r in rows]
+    return [
+        MoodOut(
+            date=r.date, level=r.level, memo=r.memo,
+            latitude=r.latitude, longitude=r.longitude,
+        )
+        for r in rows
+    ]
+
+
+@app.get("/moods/with-location", response_model=list[MoodOut])
+def get_moods_with_location(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(Mood)
+        .filter(
+            Mood.user_id == user.id,
+            Mood.latitude.isnot(None),
+            Mood.longitude.isnot(None),
+        )
+        .order_by(Mood.date.desc())
+        .limit(500)
+        .all()
+    )
+    return [
+        MoodOut(
+            date=r.date, level=r.level, memo=r.memo,
+            latitude=r.latitude, longitude=r.longitude,
+        )
+        for r in rows
+    ]

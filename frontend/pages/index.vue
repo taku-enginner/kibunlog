@@ -51,6 +51,8 @@ interface Mood {
   date: string
   level: number
   memo?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 const config = useRuntimeConfig()
@@ -84,8 +86,21 @@ const selectedLevel = ref<number | null>(null)
 const memo = ref('')
 const saving = ref(false)
 const error = ref(false)
+const userLatitude = ref<number | null>(null)
+const userLongitude = ref<number | null>(null)
 
 onMounted(async () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        userLatitude.value = pos.coords.latitude
+        userLongitude.value = pos.coords.longitude
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 10000 }
+    )
+  }
+
   try {
     const moods = await $fetch<Mood[]>(`${apiBase}/moods`, {
       params: { from_date: todayStr, to_date: todayStr },
@@ -112,7 +127,13 @@ async function recordMood() {
   try {
     const result = await $fetch<Mood>(`${apiBase}/moods`, {
       method: 'POST',
-      body: { date: todayStr, level: selectedLevel.value, memo: memo.value || null },
+      body: {
+        date: todayStr,
+        level: selectedLevel.value,
+        memo: memo.value || null,
+        latitude: userLatitude.value,
+        longitude: userLongitude.value,
+      },
       headers: getHeaders(),
     })
     todayMood.value = result
