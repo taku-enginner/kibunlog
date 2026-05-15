@@ -13,7 +13,7 @@ export function useGoogleMaps() {
     }
 
     const script = document.createElement('script')
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${config.public.googleMapsApiKey}&libraries=places,marker,visualization&language=ja&region=JP&loading=async`
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${config.public.googleMapsApiKey}&libraries=places,marker&language=ja&region=JP&loading=async`
     script.async = true
     script.defer = true
 

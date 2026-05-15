@@ -21,20 +21,23 @@
       <div v-if="showDetail" class="overlay" @click.self="showDetail = false">
         <div class="detail-sheet">
           <div class="sheet-header">
-            <span class="sheet-title">この付近の記録（{{ nearbyMoods.length }}件）</span>
+            <div>
+              <span class="sheet-title">{{ detailPlaceName }}</span>
+              <span class="sheet-avg" :style="{ color: moodColors[Math.round(detailAvg)] }">
+                平均 {{ detailAvg.toFixed(1) }}
+              </span>
+            </div>
             <button class="close-btn" @click="showDetail = false">✕</button>
           </div>
-          <div v-if="nearbyMoods.length === 0" class="detail-empty">付近に記録がありません</div>
-          <div v-else class="detail-list">
-            <div v-for="m in nearbyMoods" :key="m.id" class="detail-item">
+          <div class="detail-list">
+            <div v-for="m in detailMoods" :key="m.id" class="detail-item">
               <div class="detail-header">
-                <span class="detail-place">{{ m.place_name || '場所なし' }}</span>
+                <span class="detail-date">
+                  {{ m.date }}<span v-if="m.time"> {{ m.time }}</span>
+                </span>
                 <span class="detail-mood" :style="{ color: moodColors[m.level] }">
                   {{ moodLabels[m.level] }}
                 </span>
-              </div>
-              <div class="detail-meta">
-                {{ m.date }}<span v-if="m.time"> {{ m.time }}</span>
               </div>
               <p v-if="m.memo" class="detail-memo">{{ m.memo }}</p>
             </div>
@@ -53,8 +56,19 @@ interface Mood {
   level: number
   memo?: string | null
   place_name?: string | null
+  place_id?: number | null
   latitude?: number | null
   longitude?: number | null
+}
+
+interface PlaceGroup {
+  placeId: number
+  placeName: string
+  lat: number
+  lng: number
+  avgLevel: number
+  count: number
+  moods: Mood[]
 }
 
 const moodColors: Record<number, string> = {
@@ -71,6 +85,14 @@ const moodLabels: Record<number, string> = {
   3: '😐 普通',
   2: '😣 いまいち',
   1: '😵 しんどい',
+}
+
+function avgColor(avg: number): string {
+  if (avg >= 4.5) return '#1b5e20'
+  if (avg >= 3.5) return '#28a745'
+  if (avg >= 2.5) return '#ffc107'
+  if (avg >= 1.5) return '#dc3545'
+  return '#491217'
 }
 
 const config = useRuntimeConfig()
@@ -91,7 +113,9 @@ const loading = ref(true)
 const mapContainer = ref<HTMLElement | null>(null)
 const currentZoom = ref(13)
 const showDetail = ref(false)
-const nearbyMoods = ref<Mood[]>([])
+const detailPlaceName = ref('')
+const detailAvg = ref(0)
+const detailMoods = ref<Mood[]>([])
 let mapInstance: google.maps.Map | null = null
 
 function setZoom(level: number) {
@@ -99,42 +123,36 @@ function setZoom(level: number) {
   if (mapInstance) mapInstance.setZoom(level)
 }
 
-// ズームレベルに応じた検索半径(メートル)
-function getSearchRadius(zoom: number): number {
-  if (zoom >= 16) return 100
-  if (zoom >= 13) return 500
-  if (zoom >= 11) return 2000
-  if (zoom >= 8) return 10000
-  return 50000
+function groupByPlace(moodList: Mood[]): PlaceGroup[] {
+  const map = new Map<number, PlaceGroup>()
+  for (const m of moodList) {
+    if (m.place_id == null || m.latitude == null || m.longitude == null) continue
+    let group = map.get(m.place_id)
+    if (!group) {
+      group = {
+        placeId: m.place_id,
+        placeName: m.place_name || '場所なし',
+        lat: m.latitude,
+        lng: m.longitude,
+        avgLevel: 0,
+        count: 0,
+        moods: [],
+      }
+      map.set(m.place_id, group)
+    }
+    group.moods.push(m)
+    group.count++
+  }
+  for (const g of map.values()) {
+    g.avgLevel = g.moods.reduce((s, m) => s + m.level, 0) / g.count
+  }
+  return Array.from(map.values())
 }
 
-// 2点間の距離(メートル) - Haversine
-function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLng = (lng2 - lng1) * Math.PI / 180
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-function onMapClick(e: google.maps.MapMouseEvent) {
-  if (!e.latLng) return
-  const lat = e.latLng.lat()
-  const lng = e.latLng.lng()
-  const zoom = mapInstance?.getZoom() || 13
-  const radius = getSearchRadius(zoom)
-
-  const nearby = moods.value.filter((m) => {
-    if (m.latitude == null || m.longitude == null) return false
-    return distanceM(lat, lng, m.latitude, m.longitude) <= radius
-  })
-
-  if (nearby.length === 0) return
-
-  // 新しい順にソート
-  nearbyMoods.value = nearby.sort((a, b) => {
+function openDetail(group: PlaceGroup) {
+  detailPlaceName.value = group.placeName
+  detailAvg.value = group.avgLevel
+  detailMoods.value = [...group.moods].sort((a, b) => {
     const da = `${a.date} ${a.time || ''}`.trim()
     const db = `${b.date} ${b.time || ''}`.trim()
     return db.localeCompare(da)
@@ -159,9 +177,11 @@ onMounted(async () => {
 
   await loadGoogleMaps()
 
-  const first = moods.value[0]
+  const groups = groupByPlace(moods.value)
+  const first = groups[0]
+
   mapInstance = new google.maps.Map(mapContainer.value, {
-    center: { lat: first.latitude!, lng: first.longitude! },
+    center: { lat: first.lat, lng: first.lng },
     zoom: currentZoom.value,
     mapId: 'kibunrogu-mood-map',
     disableDefaultUI: true,
@@ -172,31 +192,58 @@ onMounted(async () => {
     if (mapInstance) currentZoom.value = mapInstance.getZoom() || 13
   })
 
-  mapInstance.addListener('click', onMapClick)
+  const { AdvancedMarkerElement } = await google.maps.importLibrary('marker') as google.maps.MarkerLibrary
 
-  // ヒートマップ
-  const { HeatmapLayer } = await google.maps.importLibrary('visualization') as google.maps.VisualizationLibrary
-  const heatmapData = moods.value
-    .filter((m) => m.latitude != null && m.longitude != null)
-    .map((m) => ({
-      location: new google.maps.LatLng(m.latitude!, m.longitude!),
-      weight: m.level, // 気分スコアをweightに
-    }))
+  for (const group of groups) {
+    const color = avgColor(group.avgLevel)
+    const size = Math.min(20 + group.count * 4, 48)
 
-  new HeatmapLayer({
-    data: heatmapData,
-    map: mapInstance,
-    radius: 40,
-    opacity: 0.7,
-    gradient: [
-      'rgba(0, 0, 0, 0)',
-      'rgba(73, 18, 23, 0.6)',   // 1: しんどい
-      'rgba(220, 53, 69, 0.6)',  // 2: いまいち
-      'rgba(255, 193, 7, 0.6)',  // 3: 普通
-      'rgba(40, 167, 69, 0.6)',  // 4: 良い
-      'rgba(27, 94, 32, 0.8)',   // 5: 最高
-    ],
-  })
+    const el = document.createElement('div')
+    el.style.display = 'flex'
+    el.style.flexDirection = 'column'
+    el.style.alignItems = 'center'
+    el.style.cursor = 'pointer'
+
+    const dot = document.createElement('div')
+    dot.style.width = `${size}px`
+    dot.style.height = `${size}px`
+    dot.style.borderRadius = '50%'
+    dot.style.backgroundColor = color
+    dot.style.border = '3px solid #fff'
+    dot.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)'
+    dot.style.display = 'flex'
+    dot.style.alignItems = 'center'
+    dot.style.justifyContent = 'center'
+    dot.style.color = '#fff'
+    dot.style.fontSize = '12px'
+    dot.style.fontWeight = '700'
+    dot.textContent = group.avgLevel.toFixed(1)
+
+    const label = document.createElement('div')
+    label.style.marginTop = '2px'
+    label.style.fontSize = '11px'
+    label.style.fontWeight = '600'
+    label.style.color = '#333'
+    label.style.background = 'rgba(255,255,255,0.9)'
+    label.style.padding = '1px 6px'
+    label.style.borderRadius = '4px'
+    label.style.whiteSpace = 'nowrap'
+    label.style.maxWidth = '120px'
+    label.style.overflow = 'hidden'
+    label.style.textOverflow = 'ellipsis'
+    label.textContent = group.placeName
+
+    el.appendChild(dot)
+    el.appendChild(label)
+
+    const marker = new AdvancedMarkerElement({
+      map: mapInstance,
+      position: { lat: group.lat, lng: group.lng },
+      content: el,
+    })
+
+    marker.addListener('click', () => openDetail(group))
+  }
 })
 </script>
 
@@ -282,13 +329,19 @@ onMounted(async () => {
 .sheet-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 14px;
 }
 
 .sheet-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
+  display: block;
+}
+
+.sheet-avg {
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .close-btn {
@@ -300,16 +353,10 @@ onMounted(async () => {
   padding: 8px;
 }
 
-.detail-empty {
-  text-align: center;
-  color: #6e6e73;
-  padding: 20px 0;
-}
-
 .detail-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .detail-item {
@@ -325,21 +372,14 @@ onMounted(async () => {
   margin-bottom: 4px;
 }
 
-.detail-place {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
+.detail-date {
+  font-size: 13px;
+  color: #6e6e73;
 }
 
 .detail-mood {
   font-size: 14px;
   font-weight: 700;
-}
-
-.detail-meta {
-  font-size: 12px;
-  color: #6e6e73;
-  margin-bottom: 4px;
 }
 
 .detail-memo {
