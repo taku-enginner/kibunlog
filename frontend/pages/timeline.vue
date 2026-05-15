@@ -27,7 +27,7 @@
     <div v-else class="timeline">
       <div
         v-for="mood in filteredMoods"
-        :key="mood.date"
+        :key="mood.id"
         class="timeline-item"
         :style="{ borderLeftColor: moodConfig[mood.level]?.bg }"
       >
@@ -43,6 +43,7 @@
               {{ moodConfig[mood.level]?.label }}
             </span>
           </div>
+          <p v-if="mood.place_name" class="timeline-place">{{ mood.place_name }}</p>
           <p v-if="mood.memo" class="timeline-memo">{{ mood.memo }}</p>
           <p v-else class="timeline-no-memo">メモなし</p>
         </div>
@@ -53,9 +54,11 @@
 
 <script setup lang="ts">
 interface Mood {
+  id: number
   date: string
   level: number
   memo?: string | null
+  place_name?: string | null
 }
 
 const config = useRuntimeConfig()
@@ -232,6 +235,13 @@ function formatDate(dateStr: string): string {
   color: #333;
   white-space: pre-wrap;
   line-height: 1.6;
+}
+
+.timeline-place {
+  font-size: 13px;
+  color: #007aff;
+  font-weight: 500;
+  margin-bottom: 2px;
 }
 
 .timeline-no-memo {

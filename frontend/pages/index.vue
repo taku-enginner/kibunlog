@@ -3,56 +3,63 @@
     <h1 class="page-title">きぶんログ</h1>
     <p class="today-date" :style="{ color: todayColor }">{{ todayLabel }}</p>
 
-    <div v-if="todayMood" class="recorded-status">
-      <p class="recorded-label">今日の記録</p>
-      <div class="recorded-mood" :style="{ background: moodConfig[todayMood.level]?.bg }">
-        <span class="recorded-emoji">{{ moodConfig[todayMood.level]?.emoji }}</span>
-        <span class="recorded-text">{{ moodConfig[todayMood.level]?.label }}</span>
-      </div>
-      <p v-if="todayMood.memo" class="recorded-memo">{{ todayMood.memo }}</p>
-      <button class="edit-btn" @click="startEdit">記録を変更する</button>
-    </div>
-
-    <div v-else class="mood-buttons">
-      <p class="prompt-text">今日の気分は？</p>
-      <div class="buttons-row">
-        <button
-          v-for="opt in moodOptions"
-          :key="opt.level"
-          class="mood-btn"
-          :style="{ background: selectedLevel === opt.level ? opt.bg : '#fff', color: selectedLevel === opt.level ? opt.color : '#333' }"
-          :class="{ selected: selectedLevel === opt.level }"
-          @click="selectedLevel = opt.level"
+    <div v-if="loading" class="loading">読み込み中...</div>
+    <template v-else>
+      <div v-if="todayMoods.length > 0" class="mood-cards">
+        <div
+          v-for="mood in todayMoods"
+          :key="mood.id"
+          class="mood-card"
+          :style="{ borderLeftColor: moodConfig[mood.level]?.bg }"
+          @click="startEdit(mood)"
         >
-          <span class="btn-emoji">{{ opt.emoji }}</span>
-          <span class="btn-label">{{ opt.label }}</span>
-        </button>
+          <div class="card-header">
+            <span class="card-place">{{ mood.place_name || '場所なし' }}</span>
+            <span class="card-mood" :style="{ color: moodConfig[mood.level]?.color }">
+              {{ moodConfig[mood.level]?.emoji }} {{ moodConfig[mood.level]?.label }}
+            </span>
+          </div>
+          <p v-if="mood.memo" class="card-memo">{{ mood.memo }}</p>
+        </div>
       </div>
+      <p v-else class="empty-hint">まだ記録がありません</p>
 
-      <div v-if="selectedLevel !== null" class="memo-section">
-        <textarea
-          v-model="memo"
-          class="memo-input"
-          placeholder="メモ（任意）"
-          rows="5"
-        />
-        <button class="save-btn" :disabled="saving" @click="recordMood">
-          {{ saving ? '保存中...' : '記録する' }}
-        </button>
-      </div>
-    </div>
+      <button class="add-btn" @click="startAdd">＋ 記録を追加</button>
+    </template>
 
-    <p v-if="error" class="error-msg">記録に失敗しました。もう一度お試しください。</p>
+    <PlaceSelector
+      v-if="showPlaceSelector"
+      @select="onPlaceSelected"
+      @close="showPlaceSelector = false"
+    />
+
+    <MoodForm
+      v-if="showMoodForm"
+      :place-name="selectedPlace?.name"
+      :initial-level="editingMood?.level"
+      :initial-memo="editingMood?.memo"
+      :saving="saving"
+      @submit="onMoodSubmit"
+      @close="cancelForm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 interface Mood {
+  id: number
   date: string
   level: number
   memo?: string | null
-  latitude?: number | null
-  longitude?: number | null
+  place_id?: number | null
+  place_name?: string | null
+}
+
+interface Place {
+  id: number
+  name: string
+  latitude: number | null
+  longitude: number | null
 }
 
 const config = useRuntimeConfig()
@@ -68,82 +75,89 @@ const moodConfig: Record<number, { emoji: string; label: string; bg: string; col
   1: { emoji: '😵', label: 'しんどい', bg: '#f5c6cb', color: '#491217' },
 }
 
-const moodOptions = [
-  { level: 5, ...moodConfig[5] },
-  { level: 4, ...moodConfig[4] },
-  { level: 3, ...moodConfig[3] },
-  { level: 2, ...moodConfig[2] },
-  { level: 1, ...moodConfig[1] },
-]
-
 const today = new Date()
 const todayStr = today.toISOString().slice(0, 10)
 const todayLabel = formatWithDay(today)
 const todayColor = getDateColor(today)
 
-const todayMood = ref<Mood | null>(null)
-const selectedLevel = ref<number | null>(null)
-const memo = ref('')
+const todayMoods = ref<Mood[]>([])
+const loading = ref(true)
 const saving = ref(false)
-const error = ref(false)
-const userLatitude = ref<number | null>(null)
-const userLongitude = ref<number | null>(null)
+
+const showPlaceSelector = ref(false)
+const showMoodForm = ref(false)
+const selectedPlace = ref<Place | null>(null)
+const editingMood = ref<Mood | null>(null)
 
 onMounted(async () => {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        userLatitude.value = pos.coords.latitude
-        userLongitude.value = pos.coords.longitude
-      },
-      () => {},
-      { enableHighAccuracy: false, timeout: 10000 }
-    )
-  }
-
   try {
-    const moods = await $fetch<Mood[]>(`${apiBase}/moods`, {
+    const result = await $fetch<Mood[]>(`${apiBase}/moods`, {
       params: { from_date: todayStr, to_date: todayStr },
       headers: getHeaders(),
     })
-    if (moods && moods.length > 0) {
-      todayMood.value = moods[0]
-    }
-  } catch (e) {
-    // Not recorded yet
-  }
+    todayMoods.value = result
+  } catch {}
+  loading.value = false
 })
 
-function startEdit() {
-  selectedLevel.value = todayMood.value?.level ?? null
-  memo.value = todayMood.value?.memo ?? ''
-  todayMood.value = null
+function startAdd() {
+  editingMood.value = null
+  selectedPlace.value = null
+  showPlaceSelector.value = true
 }
 
-async function recordMood() {
-  if (selectedLevel.value === null) return
+function onPlaceSelected(place: Place) {
+  selectedPlace.value = place
+  showPlaceSelector.value = false
+  showMoodForm.value = true
+}
+
+function startEdit(mood: Mood) {
+  editingMood.value = mood
+  selectedPlace.value = mood.place_id
+    ? { id: mood.place_id, name: mood.place_name || '', latitude: null, longitude: null }
+    : null
+  showMoodForm.value = true
+}
+
+function cancelForm() {
+  showMoodForm.value = false
+  editingMood.value = null
+  selectedPlace.value = null
+}
+
+async function onMoodSubmit(data: { level: number; memo: string | null }) {
   saving.value = true
-  error.value = false
   try {
-    const result = await $fetch<Mood>(`${apiBase}/moods`, {
-      method: 'POST',
-      body: {
-        date: todayStr,
-        level: selectedLevel.value,
-        memo: memo.value || null,
-        latitude: userLatitude.value,
-        longitude: userLongitude.value,
-      },
-      headers: getHeaders(),
-    })
-    todayMood.value = result
-    selectedLevel.value = null
-    memo.value = ''
-  } catch (e) {
-    error.value = true
-  } finally {
-    saving.value = false
-  }
+    if (editingMood.value) {
+      const updated = await $fetch<Mood>(`${apiBase}/moods/${editingMood.value.id}`, {
+        method: 'PUT',
+        body: {
+          date: editingMood.value.date,
+          level: data.level,
+          memo: data.memo,
+          place_id: editingMood.value.place_id,
+        },
+        headers: getHeaders(),
+      })
+      const idx = todayMoods.value.findIndex((m) => m.id === editingMood.value!.id)
+      if (idx >= 0) todayMoods.value[idx] = updated
+    } else {
+      const created = await $fetch<Mood>(`${apiBase}/moods`, {
+        method: 'POST',
+        body: {
+          date: todayStr,
+          level: data.level,
+          memo: data.memo,
+          place_id: selectedPlace.value?.id ?? null,
+        },
+        headers: getHeaders(),
+      })
+      todayMoods.value.push(created)
+    }
+    cancelForm()
+  } catch {}
+  saving.value = false
 }
 </script>
 
@@ -151,97 +165,85 @@ async function recordMood() {
 .record-page {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   height: 100%;
+  padding-top: 8px;
 }
 
 .page-title {
   font-size: 24px;
   font-weight: 700;
+  text-align: center;
   margin-bottom: 4px;
 }
 
 .today-date {
   font-size: 15px;
-  margin-bottom: 24px;
+  text-align: center;
+  margin-bottom: 20px;
   font-weight: 500;
 }
 
-.prompt-text {
-  font-size: 17px;
-  font-weight: 600;
-  margin-bottom: 16px;
+.loading {
   text-align: center;
+  padding: 40px 0;
+  color: #6e6e73;
 }
 
-.buttons-row {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
+.empty-hint {
+  text-align: center;
+  color: #6e6e73;
+  font-size: 15px;
+  padding: 32px 0;
 }
 
-.mood-btn {
-  width: 64px;
-  height: 80px;
-  border: 2px solid #e0e0e0;
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-}
-
-.mood-btn.selected {
-  border-color: #007aff;
-  box-shadow: 0 3px 12px rgba(0, 122, 255, 0.3);
-  transform: scale(1.08);
-}
-
-.mood-btn:active {
-  transform: scale(0.95);
-}
-
-.btn-emoji {
-  font-size: 28px;
-}
-
-.btn-label {
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.memo-section {
-  margin-top: 16px;
-  width: 100%;
-  max-width: 340px;
+.mood-cards {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-bottom: 16px;
 }
 
-.memo-input {
-  padding: 10px 14px;
-  border: 1px solid #d1d1d6;
-  border-radius: 12px;
-  font-size: 15px;
-  resize: none;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.2s;
+.mood-card {
   background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  border-left: 5px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: transform 0.15s;
 }
 
-.memo-input:focus {
-  border-color: #007aff;
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+.mood-card:active {
+  transform: scale(0.98);
 }
 
-.save-btn {
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.card-place {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.card-mood {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.card-memo {
+  font-size: 14px;
+  color: #6e6e73;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.add-btn {
+  width: 100%;
   padding: 14px;
   background: #007aff;
   color: #fff;
@@ -253,75 +255,7 @@ async function recordMood() {
   min-height: 48px;
 }
 
-.save-btn:active {
+.add-btn:active {
   background: #005ec4;
-}
-
-.save-btn:disabled {
-  opacity: 0.5;
-}
-
-.recorded-status {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.recorded-label {
-  font-size: 15px;
-  color: #6e6e73;
-  font-weight: 500;
-}
-
-.recorded-mood {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 28px 44px;
-  border-radius: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.recorded-emoji {
-  font-size: 56px;
-}
-
-.recorded-text {
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.recorded-memo {
-  font-size: 14px;
-  color: #6e6e73;
-  max-width: 300px;
-  text-align: center;
-  white-space: pre-wrap;
-  line-height: 1.5;
-}
-
-.edit-btn {
-  background: none;
-  border: 2px solid #007aff;
-  color: #007aff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 10px 20px;
-  border-radius: 10px;
-  min-height: 44px;
-}
-
-.edit-btn:active {
-  background: #007aff;
-  color: #fff;
-}
-
-.error-msg {
-  margin-top: 16px;
-  color: #d32f2f;
-  font-size: 14px;
 }
 </style>

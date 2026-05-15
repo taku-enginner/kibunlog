@@ -117,9 +117,15 @@ function selectRange(key: string) {
 onMounted(() => fetchMoods())
 
 const moodMap = computed(() => {
-  const map: Record<string, number | null> = {}
+  const sums: Record<string, { total: number; count: number }> = {}
   for (const m of moods.value) {
-    map[m.date] = m.level
+    if (!sums[m.date]) sums[m.date] = { total: 0, count: 0 }
+    sums[m.date].total += m.level
+    sums[m.date].count++
+  }
+  const map: Record<string, number | null> = {}
+  for (const [date, s] of Object.entries(sums)) {
+    map[date] = Math.round(s.total / s.count)
   }
   return map
 })

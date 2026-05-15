@@ -20,9 +20,11 @@
 
 <script setup lang="ts">
 interface Mood {
+  id: number
   date: string
   level: number
   memo?: string | null
+  place_name?: string | null
   latitude?: number | null
   longitude?: number | null
 }
@@ -105,7 +107,7 @@ onMounted(async () => {
       weight: 2,
       fillOpacity: 0.85,
     })
-      .bindPopup(`<b>${mood.date}</b><br>${moodLabels[mood.level] || ''}<br>${mood.memo || ''}`)
+      .bindPopup(`<b>${mood.place_name || mood.date}</b><br>${mood.date}<br>${moodLabels[mood.level] || ''}<br>${mood.memo || ''}`)
       .addTo(map)
   }
 })
