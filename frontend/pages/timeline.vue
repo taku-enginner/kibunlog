@@ -272,6 +272,7 @@ function toggleDeleteMode() {
 }
 
 async function deleteMood(id: number) {
+  if (!confirm('この記録を削除しますか？')) return
   try {
     await $fetch(`${apiBase}/moods/${id}`, {
       method: 'DELETE',
