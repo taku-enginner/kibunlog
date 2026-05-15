@@ -9,6 +9,7 @@
       <button class="gps-btn" @click="useCurrentLocation" :disabled="gpsLoading">
         {{ gpsLoading ? '取得中...' : '📍 現在地を使う' }}
       </button>
+      <p v-if="gpsError" class="gps-error">{{ gpsError }}</p>
 
       <div class="search-box">
         <input
@@ -68,6 +69,7 @@ const { searching, results: searchResults, search, clear } = useNominatim()
 const places = ref<Place[]>([])
 const query = ref('')
 const gpsLoading = ref(false)
+const gpsError = ref('')
 
 onMounted(async () => {
   try {
@@ -93,7 +95,11 @@ async function selectSearchResult(r: { name: string; latitude: number; longitude
 }
 
 function useCurrentLocation() {
-  if (!navigator.geolocation) return
+  gpsError.value = ''
+  if (!navigator.geolocation) {
+    gpsError.value = 'このブラウザは位置情報に対応していません'
+    return
+  }
   gpsLoading.value = true
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
@@ -114,11 +120,20 @@ function useCurrentLocation() {
           headers: getHeaders(),
         })
         emit('select', place)
-      } catch {}
+      } catch (e) {
+        gpsError.value = '場所の登録に失敗しました'
+      }
       gpsLoading.value = false
     },
-    () => {
+    (err) => {
       gpsLoading.value = false
+      if (err.code === 1) {
+        gpsError.value = '位置情報が許可されていません。ブラウザの設定を確認してください'
+      } else if (err.code === 2) {
+        gpsError.value = '位置情報を取得できませんでした'
+      } else {
+        gpsError.value = '位置情報の取得がタイムアウトしました'
+      }
     },
     { enableHighAccuracy: false, timeout: 10000 }
   )
@@ -182,6 +197,12 @@ function useCurrentLocation() {
 
 .gps-btn:disabled {
   opacity: 0.5;
+}
+
+.gps-error {
+  font-size: 13px;
+  color: #d32f2f;
+  margin-bottom: 8px;
 }
 
 .search-box {
