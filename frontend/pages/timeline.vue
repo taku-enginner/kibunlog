@@ -147,7 +147,7 @@ interface Place {
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
-const { getDayName, getDateColor, formatWithDay } = useDate()
+const { getDayName, getDateColor, formatWithDay, toLocalDateStr } = useDate()
 
 const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
   5: { emoji: '😆', label: '最高', bg: '#c8e6c9', color: '#1b5e20' },
@@ -166,7 +166,7 @@ const moodOptions = [
 ]
 
 const today = new Date()
-const todayStr = today.toISOString().slice(0, 10)
+const todayStr = toLocalDateStr(today)
 const todayLabel = formatWithDay(today)
 const todayColor = getDateColor(today)
 

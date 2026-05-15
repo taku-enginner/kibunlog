@@ -82,7 +82,7 @@ interface Place {
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
-const { formatWithDay, getDateColor } = useDate()
+const { formatWithDay, getDateColor, toLocalDateStr } = useDate()
 
 const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
   5: { emoji: '😆', label: '最高', bg: '#c8e6c9', color: '#1b5e20' },
@@ -95,7 +95,7 @@ const moodConfig: Record<number, { emoji: string; label: string; bg: string; col
 const dayNames = ['日', '月', '火', '水', '木', '金', '土']
 
 const today = new Date()
-const todayStr = today.toISOString().slice(0, 10)
+const todayStr = toLocalDateStr(today)
 const todayLabel = formatWithDay(today)
 const todayColor = getDateColor(today)
 
@@ -139,7 +139,7 @@ onMounted(async () => {
   // 直近7日分のデータ取得
   const weekAgo = new Date(today)
   weekAgo.setDate(weekAgo.getDate() - 6)
-  const fromDate = weekAgo.toISOString().slice(0, 10)
+  const fromDate = toLocalDateStr(weekAgo)
 
   try {
     const result = await $fetch<Mood[]>(`${apiBase}/moods`, {
@@ -162,7 +162,7 @@ onMounted(async () => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekAgo)
       d.setDate(weekAgo.getDate() + i)
-      const ds = d.toISOString().slice(0, 10)
+      const ds = toLocalDateStr(d)
       const levels = byDate.get(ds)
       if (levels && levels.length > 0) {
         const avg = levels.reduce((s, v) => s + v, 0) / levels.length

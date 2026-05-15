@@ -115,7 +115,7 @@ interface Mood {
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
-const { getDateColor } = useDate()
+const { getDateColor, toLocalDateStr } = useDate()
 
 const dayNames = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -145,7 +145,7 @@ const thisWeekAvg = computed(() => {
   const now = new Date()
   const monday = new Date(now)
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-  const from = monday.toISOString().slice(0, 10)
+  const from = toLocalDateStr(monday)
   const items = moods.value.filter((m) => m.date >= from)
   if (items.length === 0) return 0
   return items.reduce((s, m) => s + m.level, 0) / items.length
@@ -155,7 +155,7 @@ const thisWeekCount = computed(() => {
   const now = new Date()
   const monday = new Date(now)
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-  const from = monday.toISOString().slice(0, 10)
+  const from = toLocalDateStr(monday)
   return moods.value.filter((m) => m.date >= from).length
 })
 
@@ -165,8 +165,8 @@ const lastWeekAvg = computed(() => {
   thisMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
   const lastMonday = new Date(thisMonday)
   lastMonday.setDate(thisMonday.getDate() - 7)
-  const from = lastMonday.toISOString().slice(0, 10)
-  const to = thisMonday.toISOString().slice(0, 10)
+  const from = toLocalDateStr(lastMonday)
+  const to = toLocalDateStr(thisMonday)
   const items = moods.value.filter((m) => m.date >= from && m.date < to)
   if (items.length === 0) return 0
   return items.reduce((s, m) => s + m.level, 0) / items.length
@@ -178,8 +178,8 @@ const lastWeekCount = computed(() => {
   thisMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
   const lastMonday = new Date(thisMonday)
   lastMonday.setDate(thisMonday.getDate() - 7)
-  const from = lastMonday.toISOString().slice(0, 10)
-  const to = thisMonday.toISOString().slice(0, 10)
+  const from = toLocalDateStr(lastMonday)
+  const to = toLocalDateStr(thisMonday)
   return moods.value.filter((m) => m.date >= from && m.date < to).length
 })
 
@@ -243,10 +243,10 @@ const currentStreak = computed(() => {
   let streak = 0
   const d = new Date()
   // 今日記録がなければ昨日から数える
-  if (!dates.has(d.toISOString().slice(0, 10))) {
+  if (!dates.has(toLocalDateStr(d))) {
     d.setDate(d.getDate() - 1)
   }
-  while (dates.has(d.toISOString().slice(0, 10))) {
+  while (dates.has(toLocalDateStr(d))) {
     streak++
     d.setDate(d.getDate() - 1)
   }
@@ -278,7 +278,7 @@ const missedDays = computed(() => {
   for (let i = 0; i < 30; i++) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    if (!dates.has(d.toISOString().slice(0, 10))) missed++
+    if (!dates.has(toLocalDateStr(d))) missed++
   }
   return missed
 })

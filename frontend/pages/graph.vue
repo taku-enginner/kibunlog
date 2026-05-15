@@ -68,7 +68,7 @@ interface RangeOption {
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
-const { getDayName, getDateColor } = useDate()
+const { getDayName, getDateColor, toLocalDateStr } = useDate()
 
 const rangeOptions: RangeOption[] = [
   { key: '2w', label: '2週間', days: 14 },
@@ -96,8 +96,8 @@ async function fetchMoods() {
     from.setDate(from.getDate() - (currentDays.value - 1))
     const result = await $fetch<Mood[]>(`${apiBase}/moods`, {
       params: {
-        from_date: from.toISOString().slice(0, 10),
-        to_date: today.toISOString().slice(0, 10),
+        from_date: toLocalDateStr(from),
+        to_date: toLocalDateStr(today),
       },
       headers: getHeaders(),
     })
@@ -137,7 +137,7 @@ const allDates = computed(() => {
   from.setDate(from.getDate() - (currentDays.value - 1))
   const d = new Date(from)
   for (let i = 0; i < currentDays.value; i++) {
-    dates.push(d.toISOString().slice(0, 10))
+    dates.push(toLocalDateStr(d))
     d.setDate(d.getDate() + 1)
   }
   return dates
@@ -162,7 +162,7 @@ const warningRanges = computed<WarningRange[]>(() => {
         prevDate.setDate(prevDate.getDate() - 1)
         ranges.push({
           start: formatLabel(start),
-          end: formatLabel(prevDate.toISOString().slice(0, 10)),
+          end: formatLabel(toLocalDateStr(prevDate)),
           days: count,
         })
       }

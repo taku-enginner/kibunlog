@@ -33,7 +33,7 @@ services:
       - "23000:3000"
     environment:
       NUXT_PUBLIC_API_BASE: http://localhost:28000
-      NUXT_PUBLIC_GOOGLE_MAPS_API_KEY: REMOVED_API_KEY
+      NUXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
     depends_on:
       - backend
 
