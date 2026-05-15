@@ -59,6 +59,10 @@
 
       <!-- マップモード -->
       <template v-if="mode === 'map'">
+        <button class="gps-btn" @click="moveToCurrentLocation" :disabled="gpsLoading">
+          {{ gpsLoading ? '取得中...' : '📍 現在地に移動' }}
+        </button>
+        <p v-if="gpsError" class="gps-error">{{ gpsError }}</p>
         <p class="hint">タップして場所を選んでください</p>
         <div ref="mapContainer" class="pin-map"></div>
         <div v-if="pinnedLocation" class="pin-confirm">
@@ -153,34 +157,62 @@ async function switchToMap() {
     )
   }
 
-  mapInstance.on('click', async (e: any) => {
-    const { lat, lng } = e.latlng
-    pinnedLocation.value = { lat, lng }
-    pinnedName.value = ''
+  mapInstance.on('click', (e: any) => placePin(e.latlng.lat, e.latlng.lng))
+}
 
-    if (pinMarker) {
-      pinMarker.setLatLng([lat, lng])
-    } else {
-      pinMarker = L.circleMarker([lat, lng], {
-        radius: 12,
-        fillColor: '#007aff',
-        color: '#fff',
-        weight: 3,
-        fillOpacity: 0.9,
-      }).addTo(mapInstance)
-    }
+async function placePin(lat: number, lng: number) {
+  pinnedLocation.value = { lat, lng }
+  pinnedName.value = ''
 
-    // 逆ジオコーディング
-    try {
-      const data = await $fetch<any>('https://nominatim.openstreetmap.org/reverse', {
-        params: { lat, lon: lng, format: 'json', 'accept-language': 'ja' },
-        headers: { 'User-Agent': 'kibunrogu-app' },
-      })
-      pinnedName.value = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-    } catch {
-      pinnedName.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-    }
-  })
+  if (!leafletLib || !mapInstance) return
+
+  if (pinMarker) {
+    pinMarker.setLatLng([lat, lng])
+  } else {
+    pinMarker = leafletLib.circleMarker([lat, lng], {
+      radius: 12,
+      fillColor: '#007aff',
+      color: '#fff',
+      weight: 3,
+      fillOpacity: 0.9,
+    }).addTo(mapInstance)
+  }
+
+  try {
+    const data = await $fetch<any>('https://nominatim.openstreetmap.org/reverse', {
+      params: { lat, lon: lng, format: 'json', 'accept-language': 'ja' },
+      headers: { 'User-Agent': 'kibunrogu-app' },
+    })
+    pinnedName.value = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+  } catch {
+    pinnedName.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+  }
+}
+
+function moveToCurrentLocation() {
+  gpsError.value = ''
+  if (!navigator.geolocation) {
+    gpsError.value = 'このブラウザは位置情報に対応していません'
+    return
+  }
+  gpsLoading.value = true
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude } = pos.coords
+      mapInstance?.setView([latitude, longitude], 16)
+      placePin(latitude, longitude)
+      gpsLoading.value = false
+    },
+    (err) => {
+      gpsLoading.value = false
+      if (err.code === 1) {
+        gpsError.value = '位置情報が許可されていません'
+      } else {
+        gpsError.value = '位置情報を取得できませんでした'
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  )
 }
 
 async function confirmPin() {
