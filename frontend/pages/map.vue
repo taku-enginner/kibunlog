@@ -4,6 +4,9 @@
 <div v-if="loading" class="loading">読み込み中...</div>
     <div v-else-if="moods.length === 0" class="empty">位置情報付きの記録がありません</div>
     <div v-else class="map-wrapper">
+      <button class="filter-btn" :class="{ active: filterHighOnly }" @click="toggleFilter">
+        {{ filterHighOnly ? 'すべて表示' : '高評価のみ' }}
+      </button>
       <div id="mood-map" ref="mapContainer" class="map-container"></div>
       <button class="gps-btn" @click="moveToCurrentLocation" :disabled="gpsLoading">
         <svg v-if="!gpsLoading" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
@@ -106,6 +109,20 @@ const detailAvg = ref(0)
 const detailMoods = ref<Mood[]>([])
 let mapInstance: google.maps.Map | null = null
 const gpsLoading = ref(false)
+const filterHighOnly = ref(false)
+let markerEntries: { marker: google.maps.marker.AdvancedMarkerElement; group: PlaceGroup }[] = []
+
+function toggleFilter() {
+  filterHighOnly.value = !filterHighOnly.value
+  applyFilter()
+}
+
+function applyFilter() {
+  for (const entry of markerEntries) {
+    const visible = !filterHighOnly.value || entry.group.avgLevel >= 3.5
+    entry.marker.map = visible ? mapInstance : null
+  }
+}
 
 function moveToCurrentLocation() {
   if (!navigator.geolocation || !mapInstance) return
@@ -194,6 +211,7 @@ async function initMap() {
   })
 
   const { AdvancedMarkerElement } = await google.maps.importLibrary('marker') as google.maps.MarkerLibrary
+  markerEntries = []
 
   for (const group of groups) {
     const color = avgColor(group.avgLevel)
@@ -244,6 +262,7 @@ async function initMap() {
     })
 
     marker.addListener('click', () => openDetail(group))
+    markerEntries.push({ marker, group })
   }
 }
 
@@ -286,6 +305,32 @@ watch(mapContainer, () => initMap())
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.filter-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 20px;
+  background: #fff;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.filter-btn:active {
+  background: #f0f0f0;
+}
+
+.filter-btn.active {
+  background: #28a745;
+  color: #fff;
 }
 
 .gps-btn {

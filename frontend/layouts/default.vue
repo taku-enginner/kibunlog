@@ -1,9 +1,5 @@
 <template>
   <div class="app-container">
-    <header v-if="isLoggedIn" class="top-bar">
-      <span class="user-name">{{ authState.username }}</span>
-      <button class="logout-btn" @click="handleLogout">ログアウト</button>
-    </header>
     <main class="main-content">
       <slot />
     </main>
@@ -34,13 +30,10 @@
 
 <script setup lang="ts">
 const route = useRoute()
-const router = useRouter()
-const { authState, isLoggedIn, logout } = useAuth()
+const { isLoggedIn } = useAuth()
 
-function handleLogout() {
-  logout()
-  router.push('/login')
-}
+// Track touch/click heatmap on all pages
+useHeatmap()
 </script>
 
 <style>
@@ -62,35 +55,6 @@ body {
 <style scoped>
 .app-container {
   /* height, flex, overflow are in global.css */
-}
-
-.top-bar {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  max-width: 480px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.user-name {
-  font-size: 15px;
-  color: #6e6e73;
-  font-weight: 500;
-}
-
-.logout-btn {
-  background: none;
-  border: none;
-  color: #007aff;
-  font-size: 15px;
-  cursor: pointer;
-  padding: 8px 12px;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
 }
 
 .main-content {

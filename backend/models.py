@@ -42,3 +42,15 @@ class Mood(Base):
     updated_at: Mapped[datetime] = mapped_column(
         insert_default=func.now(), onupdate=func.now()
     )
+
+
+class HeatmapEvent(Base):
+    __tablename__ = "heatmap_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    page: Mapped[str] = mapped_column(String(255), nullable=False)
+    x_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    y_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(insert_default=func.now())

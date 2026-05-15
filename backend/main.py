@@ -10,7 +10,7 @@ from auth import (
     verify_password,
 )
 from database import Base, engine, get_db
-from models import Mood, Place, User
+from models import HeatmapEvent, Mood, Place, User
 
 Base.metadata.create_all(bind=engine)
 
@@ -240,3 +240,65 @@ def get_moods_with_location(
         .all()
     )
     return [_mood_to_out(mood, place) for mood, place in rows]
+
+
+# --- Heatmap ---
+
+
+class HeatmapEventIn(BaseModel):
+    x_pct: float
+    y_pct: float
+    page: str
+    event_type: str
+    timestamp: str | None = None
+
+
+class HeatmapEventOut(BaseModel):
+    id: int
+    page: str
+    x_pct: float
+    y_pct: float
+    event_type: str
+    created_at: str
+
+
+@app.post("/heatmap", status_code=201)
+def record_heatmap(
+    events: list[HeatmapEventIn],
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    for ev in events:
+        row = HeatmapEvent(
+            user_id=user.id,
+            page=ev.page,
+            x_pct=ev.x_pct,
+            y_pct=ev.y_pct,
+            event_type=ev.event_type,
+        )
+        db.add(row)
+    db.commit()
+    return {"saved": len(events)}
+
+
+@app.get("/heatmap", response_model=list[HeatmapEventOut])
+def get_heatmap(
+    page: str | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(HeatmapEvent).filter(HeatmapEvent.user_id == user.id)
+    if page:
+        q = q.filter(HeatmapEvent.page == page)
+    rows = q.order_by(HeatmapEvent.created_at.desc()).limit(5000).all()
+    return [
+        HeatmapEventOut(
+            id=r.id,
+            page=r.page,
+            x_pct=r.x_pct,
+            y_pct=r.y_pct,
+            event_type=r.event_type,
+            created_at=r.created_at.isoformat(),
+        )
+        for r in rows
+    ]

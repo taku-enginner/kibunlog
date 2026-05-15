@@ -1008,10 +1008,10 @@ async function main() {
   // ============================================
   console.log('\n🔐 ログインページ')
   try {
-    // ログアウトしてログイン画面を確認
-    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' })
-    await page.waitForSelector('.logout-btn', { timeout: 3000 })
-    await page.click('.logout-btn')
+    // ログアウトはプラスαページに移動
+    await page.goto(BASE_URL + '/insights', { waitUntil: 'networkidle' })
+    await page.waitForSelector('.logout-link', { timeout: 3000 })
+    await page.click('.logout-link')
     await page.waitForTimeout(500)
     await page.waitForSelector('.login-form', { timeout: 5000 })
     ok('ログアウトでログインページに遷移する')
@@ -1136,27 +1136,15 @@ async function main() {
   }
 
   // ============================================
-  // ヘッダー
+  // ログアウト（プラスαページ）
   // ============================================
-  console.log('\n👤 ヘッダー')
+  console.log('\n👤 ログアウト')
   try {
-    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' })
-    await page.waitForSelector('.user-name', { timeout: 3000 })
-    const name = await page.textContent('.user-name')
-    if (name?.includes(USERNAME)) {
-      ok(`ヘッダーにユーザー名「${USERNAME}」が表示される`)
-    } else {
-      fail('ヘッダーにユーザー名が表示される', `表示名: ${name}`)
-    }
+    await page.goto(BASE_URL + '/insights', { waitUntil: 'networkidle' })
+    await page.waitForSelector('.logout-link', { timeout: 3000 })
+    ok('プラスαページにログアウトリンクがある')
   } catch (e) {
-    fail('ヘッダーにユーザー名が表示される', e.message)
-  }
-
-  try {
-    await page.waitForSelector('.logout-btn', { timeout: 2000 })
-    ok('ログアウトボタンが表示される')
-  } catch (e) {
-    fail('ログアウトボタンが表示される', e.message)
+    fail('プラスαページにログアウトリンクがある', e.message)
   }
 
   // ============================================
