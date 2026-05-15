@@ -17,6 +17,16 @@
 3. **履歴 (/timeline)** - 「今日」タブ（カード一覧・編集・削除）と「履歴」タブ（全記録・フィルター）
 4. **マップ (/map)** - 場所ごとにピン集約（色=平均気分、サイズ=記録数）
 
+## 環境変数
+
+`.env`ファイルをプロジェクトルートに作成:
+
+```bash
+GOOGLE_MAPS_API_KEY=your_api_key_here
+```
+
+Google Cloud Consoleで Maps JavaScript API と Places API (New) を有効化すること。
+
 ## 起動方法
 
 ### Mac（ローカル検証）
@@ -32,6 +42,9 @@ docker compose -f docker-compose.mac.yml up -d --build
 ### Debian（本番）
 
 ```bash
+# 初回 or docker-compose.yml→debian.ymlリネーム後
+git pull
+# .envにGOOGLE_MAPS_API_KEYを設定
 docker compose -f docker-compose.debian.yml up -d --build
 ```
 
