@@ -187,7 +187,12 @@ const pendingMemo = ref<string | null>(null)
 
 const todayMoods = computed(() => allMoods.value.filter((m) => m.date === todayStr))
 
-const historyMoods = computed(() => allMoods.value.slice().reverse())
+const historyMoods = computed(() =>
+  allMoods.value.slice().sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date)
+    return (b.time || '').localeCompare(a.time || '')
+  })
+)
 
 const filteredMoods = computed(() => {
   if (filterLevel.value === null) return historyMoods.value
