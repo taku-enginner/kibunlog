@@ -186,9 +186,26 @@ async function main() {
     await page.click('.pin-select-btn')
     await page.waitForSelector('.mood-btn', { timeout: 3000 })
     ok('「この場所を選択」で気分入力フォームが開く')
-    await page.click('.close-btn')
   } catch (e) {
     fail('「この場所を選択」で気分入力フォームが開く', e.message)
+  }
+
+  // --- Test: Map flow: select mood and submit ---
+  try {
+    const cardsBefore = await page.$$('.mood-card')
+    await page.click('.mood-btn:first-child')
+    await page.waitForTimeout(200)
+    await page.click('.save-btn')
+    await page.waitForTimeout(1000)
+    await page.waitForSelector('.mood-card', { timeout: 3000 })
+    const cardsAfter = await page.$$('.mood-card')
+    if (cardsAfter.length > cardsBefore.length) {
+      ok('マップ経由で気分を記録してカードが増える')
+    } else {
+      fail('マップ経由で気分を記録してカードが増える', `カード数: ${cardsBefore.length} → ${cardsAfter.length}`)
+    }
+  } catch (e) {
+    fail('マップ経由で気分を記録してカードが増える', e.message)
   }
 
   // --- Test: Graph page ---
