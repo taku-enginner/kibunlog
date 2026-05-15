@@ -140,11 +140,25 @@ async function main() {
     await page.click('.mood-card:first-child')
     await page.waitForSelector('.mood-btn', { timeout: 3000 })
     ok('カードタップで編集フォームが開く')
-    // Close it
-    await page.click('.close-btn')
-    await page.waitForTimeout(300)
   } catch (e) {
     fail('カードタップで編集フォームが開く', e.message)
+  }
+
+  // --- Test: Edit mood and save ---
+  try {
+    await page.click('.mood-btn:nth-child(2)') // 良い
+    await page.waitForTimeout(200)
+    await page.click('.save-btn')
+    await page.waitForTimeout(1000)
+    // Form should close and card should update
+    const formGone = await page.$('.mood-btn')
+    if (!formGone) {
+      ok('編集を保存してフォームが閉じる')
+    } else {
+      fail('編集を保存してフォームが閉じる', 'フォームが閉じない')
+    }
+  } catch (e) {
+    fail('編集を保存してフォームが閉じる', e.message)
   }
 
   // --- Test: Map mode ---
