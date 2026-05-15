@@ -11,13 +11,18 @@
         class="input-field"
         autocomplete="username"
       />
-      <input
-        v-model="password"
-        type="password"
-        placeholder="パスワード"
-        class="input-field"
-        autocomplete="current-password"
-      />
+      <div class="password-wrapper">
+        <input
+          v-model="password"
+          :type="showPassword ? 'text' : 'password'"
+          placeholder="パスワード"
+          class="input-field password-input"
+          autocomplete="current-password"
+        />
+        <button type="button" class="toggle-password" @click="showPassword = !showPassword">
+          {{ showPassword ? '🙈' : '👁' }}
+        </button>
+      </div>
       <button type="submit" class="submit-btn" :disabled="loading">
         {{ loading ? '...' : isRegister ? '登録' : 'ログイン' }}
       </button>
@@ -40,6 +45,7 @@ const router = useRouter()
 const username = ref('')
 const password = ref('')
 const isRegister = ref(false)
+const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
 
@@ -113,6 +119,28 @@ async function submit() {
 
 .input-field:focus {
   border-color: #007aff;
+}
+
+.password-wrapper {
+  position: relative;
+}
+
+.password-input {
+  width: 100%;
+  padding-right: 48px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  line-height: 1;
 }
 
 .submit-btn {
