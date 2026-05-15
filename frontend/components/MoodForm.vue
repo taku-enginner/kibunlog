@@ -2,7 +2,10 @@
   <div class="overlay" @click.self="$emit('close')">
     <div class="sheet">
       <div class="sheet-header">
-        <span class="sheet-title">{{ placeName || '気分を記録' }}</span>
+        <button class="place-name-btn" @click="$emit('changePlace', { level: selectedLevel, memo: memo || null })">
+          {{ placeName || '場所なし' }}
+          <span class="place-edit-icon">✎</span>
+        </button>
         <button class="close-btn" @click="$emit('close')">✕</button>
       </div>
 
@@ -52,6 +55,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   submit: [data: { level: number; memo: string | null }]
   close: []
+  changePlace: [data: { level: number | null; memo: string | null }]
 }>()
 
 const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
@@ -106,9 +110,22 @@ function submit() {
   margin-bottom: 16px;
 }
 
-.sheet-title {
+.place-name-btn {
   font-size: 18px;
   font-weight: 700;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.place-edit-icon {
+  font-size: 14px;
+  color: #007aff;
 }
 
 .close-btn {

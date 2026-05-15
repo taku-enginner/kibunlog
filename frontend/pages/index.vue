@@ -39,11 +39,12 @@
       <MoodForm
         v-if="showMoodForm"
         :place-name="selectedPlace?.name"
-        :initial-level="editingMood?.level"
-        :initial-memo="editingMood?.memo"
+        :initial-level="pendingLevel ?? editingMood?.level"
+        :initial-memo="pendingMemo ?? editingMood?.memo"
         :saving="saving"
         @submit="onMoodSubmit"
         @close="cancelForm"
+        @change-place="onChangePlace"
       />
     </Teleport>
   </div>
@@ -92,6 +93,8 @@ const showPlaceSelector = ref(false)
 const showMoodForm = ref(false)
 const selectedPlace = ref<Place | null>(null)
 const editingMood = ref<Mood | null>(null)
+const pendingLevel = ref<number | null>(null)
+const pendingMemo = ref<string | null>(null)
 
 onMounted(async () => {
   try {
@@ -113,6 +116,9 @@ function startAdd() {
 function onPlaceSelected(place: Place) {
   selectedPlace.value = place
   showPlaceSelector.value = false
+  if (editingMood.value) {
+    editingMood.value = { ...editingMood.value, place_id: place.id, place_name: place.name }
+  }
   showMoodForm.value = true
 }
 
@@ -128,6 +134,15 @@ function cancelForm() {
   showMoodForm.value = false
   editingMood.value = null
   selectedPlace.value = null
+  pendingLevel.value = null
+  pendingMemo.value = null
+}
+
+function onChangePlace(data: { level: number | null; memo: string | null }) {
+  pendingLevel.value = data.level
+  pendingMemo.value = data.memo
+  showMoodForm.value = false
+  showPlaceSelector.value = true
 }
 
 async function onMoodSubmit(data: { level: number; memo: string | null }) {
@@ -140,7 +155,7 @@ async function onMoodSubmit(data: { level: number; memo: string | null }) {
           date: editingMood.value.date,
           level: data.level,
           memo: data.memo,
-          place_id: editingMood.value.place_id,
+          place_id: selectedPlace.value?.id ?? editingMood.value.place_id,
         },
         headers: getHeaders(),
       })
