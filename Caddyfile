@@ -1,0 +1,15 @@
+debian.tail69d614.ts.net {
+	tls /etc/caddy/certs/debian.tail69d614.ts.net.crt /etc/caddy/certs/debian.tail69d614.ts.net.key
+
+	handle /auth/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /moods* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

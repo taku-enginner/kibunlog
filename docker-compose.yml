@@ -15,8 +15,6 @@ services:
 
   backend:
     build: ./backend
-    ports:
-      - "8000:8000"
     environment:
       DB_HOST: db
       DB_PORT: "3306"
@@ -29,12 +27,23 @@ services:
 
   frontend:
     build: ./frontend
-    ports:
-      - "3000:3000"
     environment:
-      NUXT_PUBLIC_API_BASE: http://debian.tail69d614.ts.net:8000
+      NUXT_PUBLIC_API_BASE: https://debian.tail69d614.ts.net
     depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./certs:/etc/caddy/certs:ro
+      - caddy_data:/data
+    depends_on:
+      - frontend
       - backend
 
 volumes:
   db_data:
+  caddy_data:
