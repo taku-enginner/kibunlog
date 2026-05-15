@@ -1,0 +1,10 @@
+node_modules/
+.nuxt/
+.output/
+dist/
+__pycache__/
+*.pyc
+.env
+.devbox/
+devbox.d/
+devbox.lock
