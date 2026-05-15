@@ -171,9 +171,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
 
-  await nextTick()
-  if (moods.value.length === 0 || !mapContainer.value) return
+async function initMap() {
+  if (!mapContainer.value || moods.value.length === 0 || mapInstance) return
 
   await loadGoogleMaps()
 
@@ -244,7 +245,10 @@ onMounted(async () => {
 
     marker.addListener('click', () => openDetail(group))
   }
-})
+}
+
+// mapContainerのrefが解決されたタイミングでマップ初期化
+watch(mapContainer, () => initMap())
 </script>
 
 <style scoped>
