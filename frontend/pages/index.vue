@@ -34,7 +34,7 @@
           v-model="memo"
           class="memo-input"
           placeholder="メモ（任意）"
-          rows="3"
+          rows="2"
         />
         <button class="save-btn" :disabled="saving" @click="recordMood">
           {{ saving ? '保存中...' : '記録する' }}
@@ -131,53 +131,53 @@ async function recordMood() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 32px;
+  justify-content: center;
+  min-height: calc(100dvh - 120px);
 }
 
 .page-title {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .today-date {
-  font-size: 18px;
-  margin-bottom: 40px;
+  font-size: 15px;
+  margin-bottom: 24px;
   font-weight: 500;
 }
 
 .prompt-text {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 600;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   text-align: center;
 }
 
 .buttons-row {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
   justify-content: center;
 }
 
 .mood-btn {
-  width: 88px;
-  height: 104px;
+  width: 64px;
+  height: 80px;
   border: 2px solid #e0e0e0;
-  border-radius: 18px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .mood-btn.selected {
   border-color: #007aff;
-  box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+  box-shadow: 0 3px 12px rgba(0, 122, 255, 0.3);
   transform: scale(1.08);
 }
 
@@ -186,29 +186,29 @@ async function recordMood() {
 }
 
 .btn-emoji {
-  font-size: 34px;
+  font-size: 28px;
 }
 
 .btn-label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .memo-section {
-  margin-top: 28px;
+  margin-top: 16px;
   width: 100%;
-  max-width: 360px;
+  max-width: 340px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .memo-input {
-  padding: 14px 16px;
+  padding: 10px 14px;
   border: 1px solid #d1d1d6;
-  border-radius: 14px;
-  font-size: 16px;
-  resize: vertical;
+  border-radius: 12px;
+  font-size: 15px;
+  resize: none;
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s;
@@ -221,16 +221,15 @@ async function recordMood() {
 }
 
 .save-btn {
-  padding: 16px;
+  padding: 14px;
   background: #007aff;
   color: #fff;
   border: none;
-  border-radius: 14px;
-  font-size: 17px;
+  border-radius: 12px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
-  min-height: 52px;
+  min-height: 48px;
 }
 
 .save-btn:active {
@@ -239,18 +238,17 @@ async function recordMood() {
 
 .save-btn:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .recorded-status {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .recorded-label {
-  font-size: 18px;
+  font-size: 15px;
   color: #6e6e73;
   font-weight: 500;
 }
@@ -259,42 +257,40 @@ async function recordMood() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 36px 52px;
+  gap: 8px;
+  padding: 28px 44px;
   border-radius: 24px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .recorded-emoji {
-  font-size: 72px;
+  font-size: 56px;
 }
 
 .recorded-text {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
 }
 
 .recorded-memo {
-  font-size: 15px;
+  font-size: 14px;
   color: #6e6e73;
-  max-width: 320px;
+  max-width: 300px;
   text-align: center;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .edit-btn {
-  margin-top: 12px;
   background: none;
   border: 2px solid #007aff;
   color: #007aff;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  padding: 12px 24px;
-  border-radius: 12px;
-  min-height: 48px;
-  transition: all 0.2s;
+  padding: 10px 20px;
+  border-radius: 10px;
+  min-height: 44px;
 }
 
 .edit-btn:active {
@@ -303,7 +299,7 @@ async function recordMood() {
 }
 
 .error-msg {
-  margin-top: 24px;
+  margin-top: 16px;
   color: #d32f2f;
   font-size: 14px;
 }

@@ -118,40 +118,39 @@ function formatDate(dateStr: string): string {
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .filter-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: center;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
 .filter-btn {
-  padding: 10px 16px;
+  padding: 6px 14px;
   border: 2px solid #e0e0e0;
-  border-radius: 22px;
+  border-radius: 20px;
   background: #fff;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   color: #6e6e73;
   cursor: pointer;
   transition: all 0.2s;
-  min-height: 44px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .filter-emoji {
-  font-size: 22px;
-  min-width: 48px;
-  padding: 8px 12px;
+  font-size: 20px;
+  min-width: 40px;
+  padding: 6px 8px;
 }
 
 .filter-btn.active {
@@ -180,11 +179,11 @@ function formatDate(dateStr: string): string {
 
 .timeline-item {
   display: flex;
-  gap: 14px;
-  padding: 16px 0;
+  gap: 12px;
+  padding: 12px 0;
   border-bottom: 1px solid #f0f0f0;
   border-left: 4px solid transparent;
-  padding-left: 12px;
+  padding-left: 10px;
 }
 
 .timeline-item:last-child {
@@ -193,17 +192,17 @@ function formatDate(dateStr: string): string {
 
 .timeline-dot {
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .dot-emoji {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .timeline-content {

@@ -61,7 +61,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 8px 16px;
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
@@ -87,8 +87,8 @@ body {
 
 .main-content {
   flex: 1;
-  padding: 0 20px 24px;
-  padding-bottom: 88px;
+  padding: 0 16px;
+  padding-bottom: 72px;
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
@@ -112,12 +112,12 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   text-decoration: none;
   color: #8e8e93;
-  font-size: 11px;
-  padding: 8px 0;
-  min-height: 64px;
+  font-size: 10px;
+  padding: 6px 0;
+  min-height: 52px;
   justify-content: center;
   transition: color 0.2s;
 }
@@ -127,11 +127,11 @@ body {
 }
 
 .nav-icon {
-  font-size: 26px;
+  font-size: 22px;
 }
 
 .nav-label {
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
 }
 </style>

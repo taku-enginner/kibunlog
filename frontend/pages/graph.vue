@@ -349,35 +349,34 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
 .graph-page {
   display: flex;
   flex-direction: column;
+  min-height: calc(100dvh - 120px);
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .range-selector {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
 .range-btn {
-  padding: 10px 18px;
+  padding: 8px 14px;
   border: 2px solid #e0e0e0;
-  border-radius: 22px;
+  border-radius: 20px;
   background: #fff;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   color: #6e6e73;
   cursor: pointer;
   transition: all 0.2s;
-  min-height: 44px;
-  min-width: 72px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -395,10 +394,11 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
 
 .chart-wrapper {
   width: 100%;
-  height: 340px;
+  flex: 1;
+  min-height: 0;
   background: #fff;
   border-radius: 16px;
-  padding: 20px 12px;
+  padding: 16px 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
