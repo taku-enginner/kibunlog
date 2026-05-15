@@ -85,9 +85,9 @@ const moodLabels: Record<number, string> = {
 function avgColor(avg: number): string {
   if (avg >= 4.5) return '#1b5e20'
   if (avg >= 3.5) return '#28a745'
-  if (avg >= 2.5) return '#ffc107'
-  if (avg >= 1.5) return '#dc3545'
-  return '#491217'
+  if (avg >= 2.5) return '#b0b0b0'
+  if (avg >= 1.5) return '#c8c8c8'
+  return '#d5d5d5'
 }
 
 const config = useRuntimeConfig()
