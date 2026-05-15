@@ -66,8 +66,13 @@
         <p class="hint">タップして場所を選んでください</p>
         <div ref="mapContainer" class="pin-map"></div>
         <div v-if="pinnedLocation" class="pin-confirm">
-          <p class="pin-name">{{ pinnedName || '読み込み中...' }}</p>
-          <button class="pin-select-btn" :disabled="!pinnedName" @click="confirmPin">
+          <input
+            v-model="customName"
+            type="text"
+            class="pin-name-input"
+            :placeholder="pinnedName || '読み込み中...'"
+          />
+          <button class="pin-select-btn" :disabled="!pinnedName && !customName" @click="confirmPin">
             この場所を選択
           </button>
         </div>
@@ -103,6 +108,7 @@ const mode = ref<'search' | 'map'>('search')
 const mapContainer = ref<HTMLElement | null>(null)
 const pinnedLocation = ref<{ lat: number; lng: number } | null>(null)
 const pinnedName = ref('')
+const customName = ref('')
 let mapInstance: any = null
 let pinMarker: any = null
 let leafletLib: any = null
@@ -163,6 +169,7 @@ async function switchToMap() {
 async function placePin(lat: number, lng: number) {
   pinnedLocation.value = { lat, lng }
   pinnedName.value = ''
+  customName.value = ''
 
   if (!leafletLib || !mapInstance) return
 
@@ -216,12 +223,13 @@ function moveToCurrentLocation() {
 }
 
 async function confirmPin() {
-  if (!pinnedLocation.value || !pinnedName.value) return
+  const name = customName.value.trim() || pinnedName.value
+  if (!pinnedLocation.value || !name) return
   try {
     const place = await $fetch<Place>(`${apiBase}/places`, {
       method: 'POST',
       body: {
-        name: pinnedName.value,
+        name,
         latitude: pinnedLocation.value.lat,
         longitude: pinnedLocation.value.lng,
       },
@@ -459,11 +467,19 @@ function useCurrentLocation() {
   gap: 8px;
 }
 
-.pin-name {
-  font-size: 13px;
-  color: #333;
-  line-height: 1.4;
+.pin-name-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d1d6;
+  border-radius: 10px;
+  font-size: 15px;
   text-align: center;
+  outline: none;
+  background: #fff;
+}
+
+.pin-name-input:focus {
+  border-color: #007aff;
 }
 
 .pin-select-btn {
