@@ -35,7 +35,7 @@ services:
   caddy:
     image: caddy:2
     ports:
-      - "443:443"
+      - "8443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./certs:/etc/caddy/certs:ro
