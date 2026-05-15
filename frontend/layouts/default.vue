@@ -16,6 +16,10 @@
         <span class="nav-icon">📊</span>
         <span class="nav-label">グラフ</span>
       </NuxtLink>
+      <NuxtLink to="/timeline" class="nav-item" :class="{ active: route.path === '/timeline' }">
+        <span class="nav-icon">📋</span>
+        <span class="nav-label">履歴</span>
+      </NuxtLink>
     </nav>
   </div>
 </template>
