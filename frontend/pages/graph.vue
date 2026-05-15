@@ -355,26 +355,32 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
   font-size: 24px;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .range-selector {
   display: flex;
   gap: 8px;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
 .range-btn {
-  padding: 6px 14px;
-  border: 1px solid #d1d1d6;
-  border-radius: 20px;
+  padding: 10px 18px;
+  border: 2px solid #e0e0e0;
+  border-radius: 22px;
   background: #fff;
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 500;
   color: #6e6e73;
   cursor: pointer;
   transition: all 0.2s;
+  min-height: 44px;
+  min-width: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .range-btn.active {
@@ -389,11 +395,11 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
 
 .chart-wrapper {
   width: 100%;
-  height: 300px;
+  height: 340px;
   background: #fff;
   border-radius: 16px;
-  padding: 16px 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 20px 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 .loading,

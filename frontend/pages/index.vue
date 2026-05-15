@@ -131,23 +131,23 @@ async function recordMood() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 40px;
+  padding-top: 32px;
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   margin-bottom: 8px;
 }
 
 .today-date {
-  font-size: 16px;
-  color: #6e6e73;
-  margin-bottom: 48px;
+  font-size: 18px;
+  margin-bottom: 40px;
+  font-weight: 500;
 }
 
 .prompt-text {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   margin-bottom: 24px;
   text-align: center;
@@ -155,21 +155,21 @@ async function recordMood() {
 
 .buttons-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .mood-btn {
-  width: 80px;
-  height: 96px;
+  width: 88px;
+  height: 104px;
   border: 2px solid #e0e0e0;
-  border-radius: 16px;
+  border-radius: 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -177,8 +177,8 @@ async function recordMood() {
 
 .mood-btn.selected {
   border-color: #007aff;
-  box-shadow: 0 2px 12px rgba(0, 122, 255, 0.3);
-  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+  transform: scale(1.08);
 }
 
 .mood-btn:active {
@@ -186,48 +186,51 @@ async function recordMood() {
 }
 
 .btn-emoji {
-  font-size: 32px;
+  font-size: 34px;
 }
 
 .btn-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .memo-section {
-  margin-top: 24px;
+  margin-top: 28px;
   width: 100%;
   max-width: 360px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .memo-input {
-  padding: 12px;
+  padding: 14px 16px;
   border: 1px solid #d1d1d6;
-  border-radius: 12px;
-  font-size: 15px;
+  border-radius: 14px;
+  font-size: 16px;
   resize: vertical;
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s;
+  background: #fff;
 }
 
 .memo-input:focus {
   border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
 .save-btn {
-  padding: 14px;
+  padding: 16px;
   background: #007aff;
   color: #fff;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: 14px;
+  font-size: 17px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
+  min-height: 52px;
 }
 
 .save-btn:active {
@@ -247,44 +250,56 @@ async function recordMood() {
 }
 
 .recorded-label {
-  font-size: 16px;
+  font-size: 18px;
   color: #6e6e73;
+  font-weight: 500;
 }
 
 .recorded-mood {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 32px 48px;
+  gap: 10px;
+  padding: 36px 52px;
   border-radius: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .recorded-emoji {
-  font-size: 64px;
+  font-size: 72px;
 }
 
 .recorded-text {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
 }
 
 .recorded-memo {
-  font-size: 14px;
+  font-size: 15px;
   color: #6e6e73;
   max-width: 320px;
   text-align: center;
   white-space: pre-wrap;
+  line-height: 1.6;
 }
 
 .edit-btn {
-  margin-top: 8px;
+  margin-top: 12px;
   background: none;
-  border: none;
+  border: 2px solid #007aff;
   color: #007aff;
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
+  padding: 12px 24px;
+  border-radius: 12px;
+  min-height: 48px;
+  transition: all 0.2s;
+}
+
+.edit-btn:active {
+  background: #007aff;
+  color: #fff;
 }
 
 .error-msg {

@@ -1,0 +1,12 @@
+{
+  "name": "kibunrogu-scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ui-review": "node ui-review.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "playwright": "^1.49.0"
+  }
+}

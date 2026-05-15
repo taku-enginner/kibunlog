@@ -8,3 +8,4 @@ __pycache__/
 .devbox/
 devbox.d/
 devbox.lock
+scripts/screenshots/

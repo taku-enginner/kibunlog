@@ -116,15 +116,16 @@ async function submit() {
 }
 
 .submit-btn {
-  padding: 14px;
+  padding: 16px;
   background: #007aff;
   color: #fff;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: 14px;
+  font-size: 17px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
+  min-height: 52px;
 }
 
 .submit-btn:active {

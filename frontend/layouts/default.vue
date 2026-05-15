@@ -61,29 +61,34 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 16px 20px;
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
 }
 
 .user-name {
-  font-size: 14px;
+  font-size: 15px;
   color: #6e6e73;
+  font-weight: 500;
 }
 
 .logout-btn {
   background: none;
   border: none;
   color: #007aff;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
+  padding: 8px 12px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .main-content {
   flex: 1;
-  padding: 0 16px 24px;
-  padding-bottom: 80px;
+  padding: 0 20px 24px;
+  padding-bottom: 88px;
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
@@ -107,11 +112,13 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   text-decoration: none;
   color: #8e8e93;
-  font-size: 10px;
-  padding: 4px 0;
+  font-size: 11px;
+  padding: 8px 0;
+  min-height: 64px;
+  justify-content: center;
   transition: color 0.2s;
 }
 
@@ -120,10 +127,11 @@ body {
 }
 
 .nav-icon {
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .nav-label {
   font-weight: 600;
+  font-size: 11px;
 }
 </style>

@@ -13,7 +13,7 @@
       <button
         v-for="opt in moodOptions"
         :key="opt.level"
-        class="filter-btn"
+        class="filter-btn filter-emoji"
         :class="{ active: filterLevel === opt.level }"
         :style="filterLevel === opt.level ? { background: opt.bg, color: opt.color, borderColor: opt.bg } : {}"
         @click="filterLevel = opt.level"
@@ -29,6 +29,7 @@
         v-for="mood in filteredMoods"
         :key="mood.date"
         class="timeline-item"
+        :style="{ borderLeftColor: moodConfig[mood.level]?.bg }"
       >
         <div class="timeline-dot" :style="{ background: moodConfig[mood.level]?.bg }">
           <span class="dot-emoji">{{ moodConfig[mood.level]?.emoji }}</span>
@@ -125,21 +126,32 @@ function formatDate(dateStr: string): string {
 
 .filter-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
 .filter-btn {
-  padding: 6px 12px;
-  border: 1px solid #d1d1d6;
-  border-radius: 20px;
+  padding: 10px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 22px;
   background: #fff;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
   color: #6e6e73;
   cursor: pointer;
   transition: all 0.2s;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-emoji {
+  font-size: 22px;
+  min-width: 48px;
+  padding: 8px 12px;
 }
 
 .filter-btn.active {
@@ -157,6 +169,7 @@ function formatDate(dateStr: string): string {
   text-align: center;
   padding: 40px 0;
   color: #6e6e73;
+  font-size: 15px;
 }
 
 .timeline {
@@ -167,9 +180,11 @@ function formatDate(dateStr: string): string {
 
 .timeline-item {
   display: flex;
-  gap: 12px;
-  padding: 12px 0;
+  gap: 14px;
+  padding: 16px 0;
   border-bottom: 1px solid #f0f0f0;
+  border-left: 4px solid transparent;
+  padding-left: 12px;
 }
 
 .timeline-item:last-child {
@@ -178,16 +193,17 @@ function formatDate(dateStr: string): string {
 
 .timeline-dot {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .dot-emoji {
-  font-size: 20px;
+  font-size: 24px;
 }
 
 .timeline-content {
@@ -199,28 +215,28 @@ function formatDate(dateStr: string): string {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .timeline-date {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .timeline-level {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .timeline-memo {
-  font-size: 14px;
+  font-size: 15px;
   color: #333;
   white-space: pre-wrap;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .timeline-no-memo {
-  font-size: 13px;
-  color: #aaa;
+  font-size: 14px;
+  color: #bbb;
 }
 </style>
