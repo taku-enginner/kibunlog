@@ -1,5 +1,6 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
+  css: ['~/assets/css/global.css'],
 
   runtimeConfig: {
     public: {

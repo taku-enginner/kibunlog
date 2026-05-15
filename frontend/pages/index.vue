@@ -132,7 +132,7 @@ async function recordMood() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: calc(100dvh - 120px);
+  height: 100%;
 }
 
 .page-title {

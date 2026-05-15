@@ -349,7 +349,7 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
 .graph-page {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - 120px);
+  height: 100%;
 }
 
 .page-title {

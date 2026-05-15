@@ -52,12 +52,11 @@ body {
 
 <style scoped>
 .app-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  /* height, flex, overflow are in global.css */
 }
 
 .top-bar {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -86,25 +85,16 @@ body {
 }
 
 .main-content {
-  flex: 1;
-  padding: 0 16px;
-  padding-bottom: 72px;
-  max-width: 480px;
-  margin: 0 auto;
-  width: 100%;
+  /* flex, overflow, padding are in global.css */
 }
 
 .bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   display: flex;
   background: #fff;
   border-top: 1px solid #e0e0e0;
   padding: 8px 0;
   padding-bottom: max(8px, env(safe-area-inset-bottom));
-  z-index: 100;
 }
 
 .nav-item {
