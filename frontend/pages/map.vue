@@ -185,7 +185,7 @@ onMounted(async () => {
     zoom: currentZoom.value,
     mapId: 'kibunrogu-mood-map',
     disableDefaultUI: true,
-    zoomControl: true,
+    zoomControl: false,
   })
 
   mapInstance.addListener('zoom_changed', () => {
