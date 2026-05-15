@@ -89,7 +89,7 @@
           <div class="timeline-content">
             <div class="timeline-header">
               <span class="timeline-date" :style="{ color: getDateColor(new Date(mood.date + 'T00:00:00')) }">
-                {{ formatDate(mood.date) }}
+                {{ formatDate(mood.date) }}<span v-if="mood.time" class="timeline-time"> {{ mood.time }}</span>
               </span>
               <span class="timeline-level" :style="{ color: moodConfig[mood.level]?.color }">
                 {{ moodConfig[mood.level]?.label }}
@@ -99,6 +99,7 @@
             <p v-if="mood.memo" class="timeline-memo">{{ mood.memo }}</p>
             <p v-else class="timeline-no-memo">メモなし</p>
           </div>
+          <button class="timeline-delete-btn" @click="deleteMood(mood.id)">✕</button>
         </div>
       </div>
     </template>
@@ -550,5 +551,28 @@ function formatDate(dateStr: string): string {
 .timeline-no-memo {
   font-size: 14px;
   color: #bbb;
+}
+
+.timeline-time {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6e6e73;
+}
+
+.timeline-delete-btn {
+  flex-shrink: 0;
+  align-self: center;
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.timeline-delete-btn:active {
+  color: #d32f2f;
 }
 </style>
