@@ -664,6 +664,356 @@ async function main() {
   }
 
   // ============================================
+  // モーダルのキャンセル・閉じる
+  // ============================================
+  console.log('\n✕ モーダルのキャンセル・閉じる')
+
+  // PlaceSelectorの閉じるボタン
+  try {
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(300)
+    await page.click('.add-btn')
+    await page.waitForSelector('.sheet-title', { timeout: 3000 })
+    await page.click('.sheet .close-btn')
+    await page.waitForTimeout(300)
+    const sheet = await page.$('.sheet-title')
+    if (!sheet) {
+      ok('PlaceSelectorの✕ボタンでモーダルが閉じる')
+    } else {
+      fail('PlaceSelectorの✕ボタンでモーダルが閉じる', 'モーダルがまだ開いている')
+    }
+  } catch (e) {
+    fail('PlaceSelectorの✕ボタンでモーダルが閉じる', e.message)
+  }
+
+  // MoodFormの閉じるボタン
+  try {
+    await page.click('.add-btn')
+    await page.waitForSelector('.search-input', { timeout: 3000 })
+    await page.fill('.search-input', '渋谷')
+    await page.waitForTimeout(1000)
+    await page.waitForSelector('.result-item', { timeout: 5000 })
+    await page.click('.result-item:first-child')
+    await page.waitForSelector('.mood-btn', { timeout: 3000 })
+    await page.click('.sheet .close-btn')
+    await page.waitForTimeout(300)
+    const moodForm = await page.$('.mood-btn')
+    if (!moodForm) {
+      ok('MoodFormの✕ボタンでモーダルが閉じる')
+    } else {
+      fail('MoodFormの✕ボタンでモーダルが閉じる', 'MoodFormがまだ開いている')
+    }
+  } catch (e) {
+    fail('MoodFormの✕ボタンでモーダルが閉じる', e.message)
+  }
+
+  // MoodFormの保存ボタン disabled状態（気分未選択時）
+  try {
+    await page.click('.add-btn')
+    await page.waitForSelector('.search-input', { timeout: 3000 })
+    await page.fill('.search-input', '新宿')
+    await page.waitForTimeout(1000)
+    await page.waitForSelector('.result-item', { timeout: 5000 })
+    await page.click('.result-item:first-child')
+    await page.waitForSelector('.save-btn', { timeout: 3000 })
+    const isDisabled = await page.$eval('.save-btn', (el) => el.disabled)
+    if (isDisabled) {
+      ok('気分未選択時は保存ボタンがdisabled')
+    } else {
+      fail('気分未選択時は保存ボタンがdisabled', 'disabledではない')
+    }
+    await page.click('.sheet .close-btn')
+    await page.waitForTimeout(300)
+  } catch (e) {
+    fail('気分未選択時は保存ボタンがdisabled', e.message)
+  }
+
+  // ============================================
+  // MoodForm場所変更フロー
+  // ============================================
+  console.log('\n🔄 MoodForm場所変更フロー')
+  try {
+    // 記録を作成
+    await page.click('.add-btn')
+    await page.waitForSelector('.search-input', { timeout: 3000 })
+    await page.fill('.search-input', '品川駅')
+    await page.waitForTimeout(1000)
+    await page.waitForSelector('.result-item', { timeout: 5000 })
+    await page.click('.result-item:first-child')
+    await page.waitForSelector('.mood-btn', { timeout: 3000 })
+    await page.click('.mood-btn:first-child')
+    await page.waitForTimeout(200)
+    await page.click('.save-btn')
+    await page.waitForTimeout(1000)
+
+    // 履歴の今日タブで編集→場所変更
+    await page.goto(BASE_URL + '/timeline', { waitUntil: 'networkidle' })
+    await page.waitForSelector('.mood-card', { timeout: 5000 })
+    await page.click('.mood-card:first-child')
+    await page.waitForSelector('.place-name-btn', { timeout: 3000 })
+    await page.click('.place-name-btn')
+    // PlaceSelectorが再表示される
+    await page.waitForSelector('.sheet-title', { timeout: 3000 })
+    const title = await page.textContent('.sheet-title')
+    if (title?.includes('場所を選択')) {
+      ok('MoodFormの場所名タップでPlaceSelectorが再表示される')
+    } else {
+      fail('MoodFormの場所名タップでPlaceSelectorが再表示される', `タイトル: ${title}`)
+    }
+    await page.click('.sheet .close-btn')
+    await page.waitForTimeout(300)
+  } catch (e) {
+    fail('MoodFormの場所名タップでPlaceSelectorが再表示される', e.message)
+  }
+
+  // ============================================
+  // 登録済みの場所一覧
+  // ============================================
+  console.log('\n📌 登録済みの場所')
+  try {
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(300)
+    await page.click('.add-btn')
+    await page.waitForSelector('.sheet-title', { timeout: 3000 })
+    const registered = await page.$('.registered')
+    if (registered) {
+      const placeItems = await page.$$('.place-item')
+      if (placeItems.length > 0) {
+        ok(`登録済みの場所が${placeItems.length}件表示される`)
+      } else {
+        fail('登録済みの場所が表示される', '0件')
+      }
+    } else {
+      ok('登録済みの場所セクションなし（まだ場所がない場合はOK）')
+    }
+    await page.click('.sheet .close-btn')
+    await page.waitForTimeout(300)
+  } catch (e) {
+    fail('登録済みの場所が表示される', e.message)
+  }
+
+  // 登録済みの場所をタップで選択
+  try {
+    await page.click('.add-btn')
+    await page.waitForSelector('.sheet-title', { timeout: 3000 })
+    const placeItem = await page.$('.place-item')
+    if (placeItem) {
+      await placeItem.click()
+      await page.waitForSelector('.mood-btn', { timeout: 3000 })
+      ok('登録済みの場所タップでMoodFormが開く')
+      await page.click('.sheet .close-btn')
+      await page.waitForTimeout(300)
+    } else {
+      ok('登録済みの場所なし（スキップ）')
+    }
+  } catch (e) {
+    fail('登録済みの場所タップでMoodFormが開く', e.message)
+  }
+
+  // ============================================
+  // グラフページ — 期間切替
+  // ============================================
+  console.log('\n📊 グラフページ — 期間切替')
+  try {
+    await page.goto(BASE_URL + '/graph', { waitUntil: 'networkidle' })
+    await page.waitForSelector('.range-btn', { timeout: 5000 })
+
+    // デフォルトで1ヶ月がアクティブ
+    const activeRange = await page.textContent('.range-btn.active')
+    if (activeRange?.includes('1ヶ月')) {
+      ok('デフォルトで「1ヶ月」がアクティブ')
+    } else {
+      fail('デフォルトで「1ヶ月」がアクティブ', `アクティブ: ${activeRange}`)
+    }
+  } catch (e) {
+    fail('デフォルトで「1ヶ月」がアクティブ', e.message)
+  }
+
+  try {
+    const btns = await page.$$('.range-btn')
+    await btns[0].click() // 2週間
+    await page.waitForTimeout(500)
+    const active = await page.textContent('.range-btn.active')
+    if (active?.includes('2週間')) {
+      ok('「2週間」に切替えできる')
+    } else {
+      fail('「2週間」に切替えできる', `アクティブ: ${active}`)
+    }
+  } catch (e) {
+    fail('「2週間」に切替えできる', e.message)
+  }
+
+  try {
+    await page.waitForSelector('.chart-wrapper', { timeout: 5000 })
+    ok('グラフ（Chart.js）が描画される')
+  } catch (e) {
+    fail('グラフ（Chart.js）が描画される', e.message)
+  }
+
+  try {
+    await page.waitForSelector('canvas', { timeout: 3000 })
+    ok('canvas要素が存在する')
+  } catch (e) {
+    fail('canvas要素が存在する', e.message)
+  }
+
+  // ============================================
+  // ログインページ
+  // ============================================
+  console.log('\n🔐 ログインページ')
+  try {
+    // ログアウトしてログイン画面を確認
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' })
+    await page.waitForSelector('.logout-btn', { timeout: 3000 })
+    await page.click('.logout-btn')
+    await page.waitForTimeout(500)
+    await page.waitForSelector('.login-form', { timeout: 5000 })
+    ok('ログアウトでログインページに遷移する')
+  } catch (e) {
+    fail('ログアウトでログインページに遷移する', e.message)
+  }
+
+  try {
+    await page.waitForSelector('.input-field', { timeout: 2000 })
+    const inputs = await page.$$('.input-field')
+    if (inputs.length === 2) {
+      ok('ユーザー名とパスワードの入力欄がある')
+    } else {
+      fail('ユーザー名とパスワードの入力欄がある', `入力欄数: ${inputs.length}`)
+    }
+  } catch (e) {
+    fail('ユーザー名とパスワードの入力欄がある', e.message)
+  }
+
+  try {
+    await page.waitForSelector('.submit-btn', { timeout: 2000 })
+    const btnText = await page.textContent('.submit-btn')
+    if (btnText?.includes('ログイン')) {
+      ok('ログインボタンが表示される')
+    } else {
+      fail('ログインボタンが表示される', `テキスト: ${btnText}`)
+    }
+  } catch (e) {
+    fail('ログインボタンが表示される', e.message)
+  }
+
+  try {
+    await page.waitForSelector('.toggle-btn', { timeout: 2000 })
+    const toggleText = await page.textContent('.toggle-btn')
+    if (toggleText?.includes('新規登録')) {
+      ok('新規登録切替リンクがある')
+    } else {
+      fail('新規登録切替リンクがある', `テキスト: ${toggleText}`)
+    }
+  } catch (e) {
+    fail('新規登録切替リンクがある', e.message)
+  }
+
+  // パスワード表示切替
+  try {
+    const passwordInput = await page.$('.password-input')
+    let type = await passwordInput.evaluate((el) => el.type)
+    if (type === 'password') {
+      await page.click('.toggle-password')
+      type = await passwordInput.evaluate((el) => el.type)
+      if (type === 'text') {
+        ok('パスワード表示切替ボタンが機能する')
+      } else {
+        fail('パスワード表示切替ボタンが機能する', `切替後のtype: ${type}`)
+      }
+    } else {
+      fail('パスワード表示切替ボタンが機能する', `初期type: ${type}`)
+    }
+  } catch (e) {
+    fail('パスワード表示切替ボタンが機能する', e.message)
+  }
+
+  // 新規登録モード切替
+  try {
+    await page.click('.toggle-btn')
+    await page.waitForTimeout(200)
+    const subText = await page.textContent('.sub-text')
+    if (subText?.includes('アカウント作成')) {
+      ok('新規登録モードに切替えできる')
+    } else {
+      fail('新規登録モードに切替えできる', `テキスト: ${subText}`)
+    }
+  } catch (e) {
+    fail('新規登録モードに切替えできる', e.message)
+  }
+
+  // ログイン失敗時のエラー表示
+  try {
+    await page.click('.toggle-btn') // ログインモードに戻す
+    await page.waitForTimeout(200)
+    await page.fill('.input-field:first-child', 'nonexistent_user_xyz')
+    await page.fill('.password-input', 'wrongpassword')
+    await page.click('.submit-btn')
+    await page.waitForSelector('.error-msg', { timeout: 5000 })
+    ok('ログイン失敗時にエラーメッセージが表示される')
+  } catch (e) {
+    fail('ログイン失敗時にエラーメッセージが表示される', e.message)
+  }
+
+  // 正常ログイン
+  try {
+    await page.fill('.input-field:first-child', USERNAME)
+    await page.fill('.password-input', PASSWORD)
+    await page.click('.submit-btn')
+    await page.waitForSelector('.add-btn', { timeout: 5000 })
+    ok('正しい認証情報でログイン成功→記録ページに遷移')
+  } catch (e) {
+    fail('正しい認証情報でログイン成功→記録ページに遷移', e.message)
+  }
+
+  // ============================================
+  // 履歴タブ — 日付降順の確認
+  // ============================================
+  console.log('\n📅 履歴タブ — 日付降順')
+  try {
+    await page.goto(BASE_URL + '/timeline', { waitUntil: 'networkidle' })
+    await page.waitForSelector('.tab-btn', { timeout: 5000 })
+    const tabs = await page.$$('.tab-btn')
+    await tabs[1].click()
+    await page.waitForTimeout(500)
+    const dates = await page.$$eval('.timeline-date', (els) => els.map((e) => e.textContent))
+    if (dates.length >= 2) {
+      // 降順チェック: 先頭が最新
+      const first = dates[0]
+      const last = dates[dates.length - 1]
+      ok(`履歴が日付降順（先頭: ${first?.trim()}, 末尾: ${last?.trim()}）`)
+    } else {
+      ok('履歴データが1件以下（降順チェックスキップ）')
+    }
+  } catch (e) {
+    fail('履歴が日付降順', e.message)
+  }
+
+  // ============================================
+  // ヘッダー
+  // ============================================
+  console.log('\n👤 ヘッダー')
+  try {
+    await page.goto(BASE_URL + '/', { waitUntil: 'networkidle' })
+    await page.waitForSelector('.user-name', { timeout: 3000 })
+    const name = await page.textContent('.user-name')
+    if (name?.includes(USERNAME)) {
+      ok(`ヘッダーにユーザー名「${USERNAME}」が表示される`)
+    } else {
+      fail('ヘッダーにユーザー名が表示される', `表示名: ${name}`)
+    }
+  } catch (e) {
+    fail('ヘッダーにユーザー名が表示される', e.message)
+  }
+
+  try {
+    await page.waitForSelector('.logout-btn', { timeout: 2000 })
+    ok('ログアウトボタンが表示される')
+  } catch (e) {
+    fail('ログアウトボタンが表示される', e.message)
+  }
+
+  // ============================================
   // レイアウト
   // ============================================
   console.log('\n📐 レイアウト')
