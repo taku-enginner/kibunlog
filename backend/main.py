@@ -123,6 +123,7 @@ def delete_place(
 
 class MoodIn(BaseModel):
     date: str
+    time: str | None = None
     level: int
     memo: str | None = None
     place_id: int | None = None
@@ -131,6 +132,7 @@ class MoodIn(BaseModel):
 class MoodOut(BaseModel):
     id: int
     date: str
+    time: str | None = None
     level: int
     memo: str | None = None
     place_id: int | None = None
@@ -143,6 +145,7 @@ def _mood_to_out(mood: Mood, place: Place | None) -> MoodOut:
     return MoodOut(
         id=mood.id,
         date=mood.date,
+        time=mood.time,
         level=mood.level,
         memo=mood.memo,
         place_id=mood.place_id,
@@ -158,22 +161,11 @@ def record_mood(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Mood).filter(Mood.user_id == user.id, Mood.date == body.date)
-    if body.place_id is not None:
-        q = q.filter(Mood.place_id == body.place_id)
-    else:
-        q = q.filter(Mood.place_id.is_(None))
-    mood = q.first()
-
-    if mood:
-        mood.level = body.level
-        mood.memo = body.memo
-    else:
-        mood = Mood(
-            user_id=user.id, date=body.date, level=body.level,
-            memo=body.memo, place_id=body.place_id,
-        )
-        db.add(mood)
+    mood = Mood(
+        user_id=user.id, date=body.date, time=body.time,
+        level=body.level, memo=body.memo, place_id=body.place_id,
+    )
+    db.add(mood)
     db.commit()
     db.refresh(mood)
     place = db.query(Place).filter(Place.id == mood.place_id).first() if mood.place_id else None
@@ -190,30 +182,11 @@ def update_mood(
     mood = db.query(Mood).filter(Mood.id == mood_id, Mood.user_id == user.id).first()
     if not mood:
         raise HTTPException(status_code=404, detail="Mood not found")
-
-    # 場所変更先に既存レコードがある場合はマージ
-    if body.place_id != mood.place_id or body.date != mood.date:
-        q = db.query(Mood).filter(
-            Mood.user_id == user.id, Mood.date == body.date, Mood.id != mood_id
-        )
-        if body.place_id is not None:
-            q = q.filter(Mood.place_id == body.place_id)
-        else:
-            q = q.filter(Mood.place_id.is_(None))
-        existing = q.first()
-        if existing:
-            existing.level = body.level
-            existing.memo = body.memo
-            db.delete(mood)
-            db.commit()
-            db.refresh(existing)
-            place = db.query(Place).filter(Place.id == existing.place_id).first() if existing.place_id else None
-            return _mood_to_out(existing, place)
-
     mood.level = body.level
     mood.memo = body.memo
     mood.place_id = body.place_id
     mood.date = body.date
+    mood.time = body.time
     db.commit()
     db.refresh(mood)
     place = db.query(Place).filter(Place.id == mood.place_id).first() if mood.place_id else None

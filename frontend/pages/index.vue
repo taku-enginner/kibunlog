@@ -14,7 +14,10 @@
           @click="startEdit(mood)"
         >
           <div class="card-header">
-            <span class="card-place">{{ mood.place_name || '場所なし' }}</span>
+            <span class="card-place">
+              <span v-if="mood.time" class="card-time">{{ mood.time }}</span>
+              {{ mood.place_name || '場所なし' }}
+            </span>
             <span class="card-mood" :style="{ color: moodConfig[mood.level]?.color }">
               {{ moodConfig[mood.level]?.emoji }} {{ moodConfig[mood.level]?.label }}
             </span>
@@ -54,6 +57,7 @@
 interface Mood {
   id: number
   date: string
+  time?: string | null
   level: number
   memo?: string | null
   place_id?: number | null
@@ -153,6 +157,7 @@ async function onMoodSubmit(data: { level: number; memo: string | null }) {
         method: 'PUT',
         body: {
           date: editingMood.value.date,
+          time: editingMood.value.time,
           level: data.level,
           memo: data.memo,
           place_id: selectedPlace.value?.id ?? editingMood.value.place_id,
@@ -162,10 +167,13 @@ async function onMoodSubmit(data: { level: number; memo: string | null }) {
       const idx = todayMoods.value.findIndex((m) => m.id === editingMood.value!.id)
       if (idx >= 0) todayMoods.value[idx] = updated
     } else {
+      const now = new Date()
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const created = await $fetch<Mood>(`${apiBase}/moods`, {
         method: 'POST',
         body: {
           date: todayStr,
+          time: timeStr,
           level: data.level,
           memo: data.memo,
           place_id: selectedPlace.value?.id ?? null,
@@ -247,6 +255,13 @@ async function onMoodSubmit(data: { level: number; memo: string | null }) {
   font-size: 15px;
   font-weight: 600;
   color: #333;
+}
+
+.card-time {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6e6e73;
+  margin-right: 4px;
 }
 
 .card-mood {

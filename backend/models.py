@@ -34,6 +34,7 @@ class Mood(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     date: Mapped[str] = mapped_column(String(10), nullable=False)
+    time: Mapped[str | None] = mapped_column(String(5), nullable=True)
     level: Mapped[int] = mapped_column(Integer, nullable=False)
     memo: Mapped[str | None] = mapped_column(Text, nullable=True)
     place_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("places.id"), nullable=True)
@@ -41,5 +42,3 @@ class Mood(Base):
     updated_at: Mapped[datetime] = mapped_column(
         insert_default=func.now(), onupdate=func.now()
     )
-
-    __table_args__ = (UniqueConstraint("user_id", "date", "place_id", name="uq_user_date_place"),)
