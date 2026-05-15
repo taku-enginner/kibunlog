@@ -6,44 +6,68 @@
         <button class="close-btn" @click="$emit('close')">✕</button>
       </div>
 
-      <button class="gps-btn" @click="useCurrentLocation" :disabled="gpsLoading">
-        {{ gpsLoading ? '取得中...' : '📍 現在地を使う' }}
-      </button>
-      <p v-if="gpsError" class="gps-error">{{ gpsError }}</p>
-
-      <div class="search-box">
-        <input
-          v-model="query"
-          type="text"
-          placeholder="場所を検索..."
-          class="search-input"
-          @input="onSearch"
-        />
-      </div>
-
-      <div v-if="searching" class="hint">検索中...</div>
-      <div v-if="searchResults.length > 0" class="results">
-        <button
-          v-for="(r, i) in searchResults"
-          :key="i"
-          class="result-item"
-          @click="selectSearchResult(r)"
-        >
-          <span class="result-name">{{ r.name }}</span>
+      <div class="mode-tabs">
+        <button class="mode-tab" :class="{ active: mode === 'search' }" @click="mode = 'search'">
+          検索
+        </button>
+        <button class="mode-tab" :class="{ active: mode === 'map' }" @click="switchToMap">
+          マップで選ぶ
         </button>
       </div>
 
-      <div v-if="places.length > 0" class="registered">
-        <p class="section-label">登録済みの場所</p>
-        <button
-          v-for="place in places"
-          :key="place.id"
-          class="place-item"
-          @click="$emit('select', place)"
-        >
-          {{ place.name }}
+      <!-- 検索モード -->
+      <template v-if="mode === 'search'">
+        <button class="gps-btn" @click="useCurrentLocation" :disabled="gpsLoading">
+          {{ gpsLoading ? '取得中...' : '📍 現在地を使う' }}
         </button>
-      </div>
+        <p v-if="gpsError" class="gps-error">{{ gpsError }}</p>
+
+        <div class="search-box">
+          <input
+            v-model="query"
+            type="text"
+            placeholder="場所を検索..."
+            class="search-input"
+            @input="onSearch"
+          />
+        </div>
+
+        <div v-if="searching" class="hint">検索中...</div>
+        <div v-if="searchResults.length > 0" class="results">
+          <button
+            v-for="(r, i) in searchResults"
+            :key="i"
+            class="result-item"
+            @click="selectSearchResult(r)"
+          >
+            <span class="result-name">{{ r.name }}</span>
+          </button>
+        </div>
+
+        <div v-if="places.length > 0" class="registered">
+          <p class="section-label">登録済みの場所</p>
+          <button
+            v-for="place in places"
+            :key="place.id"
+            class="place-item"
+            @click="$emit('select', place)"
+          >
+            {{ place.name }}
+          </button>
+        </div>
+      </template>
+
+      <!-- マップモード -->
+      <template v-if="mode === 'map'">
+        <p class="hint">タップして場所を選んでください</p>
+        <div ref="mapContainer" class="pin-map"></div>
+        <div v-if="pinnedLocation" class="pin-confirm">
+          <p class="pin-name">{{ pinnedName || '読み込み中...' }}</p>
+          <button class="pin-select-btn" :disabled="!pinnedName" @click="confirmPin">
+            この場所を選択
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -70,6 +94,14 @@ const places = ref<Place[]>([])
 const query = ref('')
 const gpsLoading = ref(false)
 const gpsError = ref('')
+const mode = ref<'search' | 'map'>('search')
+
+const mapContainer = ref<HTMLElement | null>(null)
+const pinnedLocation = ref<{ lat: number; lng: number } | null>(null)
+const pinnedName = ref('')
+let mapInstance: any = null
+let pinMarker: any = null
+let leafletLib: any = null
 
 onMounted(async () => {
   try {
@@ -88,6 +120,79 @@ async function selectSearchResult(r: { name: string; latitude: number; longitude
     const place = await $fetch<Place>(`${apiBase}/places`, {
       method: 'POST',
       body: { name: r.name, latitude: r.latitude, longitude: r.longitude },
+      headers: getHeaders(),
+    })
+    emit('select', place)
+  } catch {}
+}
+
+async function switchToMap() {
+  mode.value = 'map'
+  await nextTick()
+  if (!mapContainer.value || mapInstance) return
+
+  const L = await import('leaflet')
+  await import('leaflet/dist/leaflet.css')
+  leafletLib = L
+
+  const center: [number, number] = [35.68, 139.77] // 東京デフォルト
+  mapInstance = L.map(mapContainer.value).setView(center, 13)
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OSM',
+  }).addTo(mapInstance)
+
+  // GPS で現在地に移動を試みる
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        mapInstance?.setView([pos.coords.latitude, pos.coords.longitude], 15)
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 5000 }
+    )
+  }
+
+  mapInstance.on('click', async (e: any) => {
+    const { lat, lng } = e.latlng
+    pinnedLocation.value = { lat, lng }
+    pinnedName.value = ''
+
+    if (pinMarker) {
+      pinMarker.setLatLng([lat, lng])
+    } else {
+      pinMarker = L.circleMarker([lat, lng], {
+        radius: 12,
+        fillColor: '#007aff',
+        color: '#fff',
+        weight: 3,
+        fillOpacity: 0.9,
+      }).addTo(mapInstance)
+    }
+
+    // 逆ジオコーディング
+    try {
+      const data = await $fetch<any>('https://nominatim.openstreetmap.org/reverse', {
+        params: { lat, lon: lng, format: 'json', 'accept-language': 'ja' },
+        headers: { 'User-Agent': 'kibunrogu-app' },
+      })
+      pinnedName.value = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+    } catch {
+      pinnedName.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+    }
+  })
+}
+
+async function confirmPin() {
+  if (!pinnedLocation.value || !pinnedName.value) return
+  try {
+    const place = await $fetch<Place>(`${apiBase}/places`, {
+      method: 'POST',
+      body: {
+        name: pinnedName.value,
+        latitude: pinnedLocation.value.lat,
+        longitude: pinnedLocation.value.lng,
+      },
       headers: getHeaders(),
     })
     emit('select', place)
@@ -156,16 +261,17 @@ function useCurrentLocation() {
   border-radius: 20px 20px 0 0;
   width: 100%;
   max-width: 480px;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
   padding: 20px 16px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
 }
 
 .sheet-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .sheet-title {
@@ -180,6 +286,32 @@ function useCurrentLocation() {
   color: #6e6e73;
   cursor: pointer;
   padding: 8px;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6e6e73;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-tab.active {
+  background: #007aff;
+  color: #fff;
 }
 
 .gps-btn {
@@ -279,5 +411,43 @@ function useCurrentLocation() {
 
 .place-item:active {
   background: #f0f0f0;
+}
+
+.pin-map {
+  width: 100%;
+  height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.pin-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pin-name {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.pin-select-btn {
+  width: 100%;
+  padding: 14px;
+  background: #007aff;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 48px;
+}
+
+.pin-select-btn:disabled {
+  opacity: 0.5;
 }
 </style>
