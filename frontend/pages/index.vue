@@ -27,21 +27,25 @@
       <button class="add-btn" @click="startAdd">＋ 記録を追加</button>
     </template>
 
-    <PlaceSelector
-      v-if="showPlaceSelector"
-      @select="onPlaceSelected"
-      @close="showPlaceSelector = false"
-    />
+    <Teleport to="body">
+      <PlaceSelector
+        v-if="showPlaceSelector"
+        @select="onPlaceSelected"
+        @close="showPlaceSelector = false"
+      />
+    </Teleport>
 
-    <MoodForm
-      v-if="showMoodForm"
-      :place-name="selectedPlace?.name"
-      :initial-level="editingMood?.level"
-      :initial-memo="editingMood?.memo"
-      :saving="saving"
-      @submit="onMoodSubmit"
-      @close="cancelForm"
-    />
+    <Teleport to="body">
+      <MoodForm
+        v-if="showMoodForm"
+        :place-name="selectedPlace?.name"
+        :initial-level="editingMood?.level"
+        :initial-memo="editingMood?.memo"
+        :saving="saving"
+        @submit="onMoodSubmit"
+        @close="cancelForm"
+      />
+    </Teleport>
   </div>
 </template>
 
