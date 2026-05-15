@@ -51,6 +51,7 @@ body {
   background: #f5f5f7;
   color: #1d1d1f;
   -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
 }
 </style>
 
