@@ -31,6 +31,7 @@ services:
     build: ./frontend
     environment:
       NUXT_PUBLIC_API_BASE: https://debian.tail69d614.ts.net:8443
+      NUXT_PUBLIC_GOOGLE_MAPS_API_KEY: REMOVED_API_KEY
     depends_on:
       - backend
 

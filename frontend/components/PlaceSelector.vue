@@ -41,6 +41,7 @@
             @click="selectSearchResult(r)"
           >
             <span class="result-name">{{ r.name }}</span>
+            <span v-if="r.address" class="result-address">{{ r.address }}</span>
           </button>
         </div>
 
@@ -97,7 +98,8 @@ const emit = defineEmits<{
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
-const { searching, results: searchResults, search, clear } = useNominatim()
+const { load: loadGoogleMaps } = useGoogleMaps()
+const { searching, results: searchResults, search, clear } = useGooglePlaces()
 
 const places = ref<Place[]>([])
 const query = ref('')
@@ -109,9 +111,9 @@ const mapContainer = ref<HTMLElement | null>(null)
 const pinnedLocation = ref<{ lat: number; lng: number } | null>(null)
 const pinnedName = ref('')
 const customName = ref('')
-let mapInstance: any = null
-let pinMarker: any = null
-let leafletLib: any = null
+let mapInstance: google.maps.Map | null = null
+let pinMarker: google.maps.marker.AdvancedMarkerElement | null = null
+let geocoder: google.maps.Geocoder | null = null
 
 onMounted(async () => {
   try {
@@ -119,6 +121,8 @@ onMounted(async () => {
       headers: getHeaders(),
     })
   } catch {}
+  // Pre-load Google Maps API for search mode
+  await loadGoogleMaps()
 })
 
 function onSearch() {
@@ -141,29 +145,35 @@ async function switchToMap() {
   await nextTick()
   if (!mapContainer.value || mapInstance) return
 
-  const L = await import('leaflet')
-  await import('leaflet/dist/leaflet.css')
-  leafletLib = L
+  await loadGoogleMaps()
 
-  const center: [number, number] = [35.68, 139.77] // 東京デフォルト
-  mapInstance = L.map(mapContainer.value).setView(center, 13)
+  const center = { lat: 35.68, lng: 139.77 }
+  mapInstance = new google.maps.Map(mapContainer.value, {
+    center,
+    zoom: 13,
+    mapId: 'kibunrogu-place-selector',
+    disableDefaultUI: true,
+    zoomControl: true,
+    gestureHandling: 'greedy',
+  })
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OSM',
-  }).addTo(mapInstance)
+  geocoder = new google.maps.Geocoder()
+  ;(window as any).__kibunrogu_map = mapInstance
 
-  // GPS で現在地に移動を試みる
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        mapInstance?.setView([pos.coords.latitude, pos.coords.longitude], 15)
+        mapInstance?.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        mapInstance?.setZoom(15)
       },
       () => {},
       { enableHighAccuracy: false, timeout: 5000 }
     )
   }
 
-  mapInstance.on('click', (e: any) => placePin(e.latlng.lat, e.latlng.lng))
+  mapInstance.addListener('click', (e: google.maps.MapMouseEvent) => {
+    if (e.latLng) placePin(e.latLng.lat(), e.latLng.lng())
+  })
 }
 
 async function placePin(lat: number, lng: number) {
@@ -171,28 +181,29 @@ async function placePin(lat: number, lng: number) {
   pinnedName.value = ''
   customName.value = ''
 
-  if (!leafletLib || !mapInstance) return
+  if (!mapInstance) return
 
   if (pinMarker) {
-    pinMarker.setLatLng([lat, lng])
+    pinMarker.position = { lat, lng }
   } else {
-    pinMarker = leafletLib.circleMarker([lat, lng], {
-      radius: 12,
-      fillColor: '#007aff',
-      color: '#fff',
-      weight: 3,
-      fillOpacity: 0.9,
-    }).addTo(mapInstance)
+    const { AdvancedMarkerElement } = await google.maps.importLibrary('marker') as google.maps.MarkerLibrary
+    pinMarker = new AdvancedMarkerElement({
+      map: mapInstance,
+      position: { lat, lng },
+    })
   }
 
-  try {
-    const data = await $fetch<any>('https://nominatim.openstreetmap.org/reverse', {
-      params: { lat, lon: lng, format: 'json', 'accept-language': 'ja' },
-      headers: { 'User-Agent': 'kibunrogu-app' },
-    })
-    pinnedName.value = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-  } catch {
-    pinnedName.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+  if (geocoder) {
+    try {
+      const response = await geocoder.geocode({ location: { lat, lng }, language: 'ja' })
+      if (response.results[0]) {
+        pinnedName.value = response.results[0].formatted_address
+      } else {
+        pinnedName.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+      }
+    } catch {
+      pinnedName.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+    }
   }
 }
 
@@ -206,7 +217,8 @@ function moveToCurrentLocation() {
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const { latitude, longitude } = pos.coords
-      mapInstance?.setView([latitude, longitude], 16)
+      mapInstance?.setCenter({ lat: latitude, lng: longitude })
+      mapInstance?.setZoom(16)
       placePin(latitude, longitude)
       gpsLoading.value = false
     },
@@ -249,16 +261,14 @@ function useCurrentLocation() {
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       try {
-        const data = await $fetch<any>('https://nominatim.openstreetmap.org/reverse', {
-          params: {
-            lat: pos.coords.latitude,
-            lon: pos.coords.longitude,
-            format: 'json',
-            'accept-language': 'ja',
-          },
-          headers: { 'User-Agent': 'kibunrogu-app' },
+        await loadGoogleMaps()
+        const geocoderLocal = new google.maps.Geocoder()
+        const response = await geocoderLocal.geocode({
+          location: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          language: 'ja',
         })
-        const name = data.display_name || `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`
+        const name = response.results[0]?.formatted_address
+          || `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`
         const place = await $fetch<Place>(`${apiBase}/places`, {
           method: 'POST',
           body: { name, latitude: pos.coords.latitude, longitude: pos.coords.longitude },
@@ -407,15 +417,14 @@ function useCurrentLocation() {
 }
 
 .result-item {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   text-align: left;
   padding: 10px 12px;
   background: #f5f5f7;
   border: none;
   border-radius: 8px;
-  font-size: 13px;
-  color: #333;
   cursor: pointer;
   margin-bottom: 6px;
   line-height: 1.4;
@@ -423,6 +432,18 @@ function useCurrentLocation() {
 
 .result-item:active {
   background: #e0e0e0;
+}
+
+.result-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.result-address {
+  font-size: 12px;
+  color: #6e6e73;
+  margin-top: 2px;
 }
 
 .section-label {

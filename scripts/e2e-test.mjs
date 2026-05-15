@@ -162,12 +162,17 @@ async function main() {
 
   // --- Test: Pin on map ---
   try {
-    const map = await page.$('.pin-map')
-    const box = await map.boundingBox()
-    await page.click('.pin-map', {
-      position: { x: box.width / 2, y: box.height / 2 },
+    await page.waitForTimeout(3000) // Google Maps の読み込み待ち
+    // Google Maps の click イベントを JS で発火
+    await page.evaluate(() => {
+      const map = window.__kibunrogu_map
+      if (map) {
+        google.maps.event.trigger(map, 'click', {
+          latLng: new google.maps.LatLng(35.68, 139.77),
+        })
+      }
     })
-    await page.waitForSelector('.pin-select-btn', { timeout: 5000 })
+    await page.waitForSelector('.pin-select-btn', { timeout: 8000 })
     ok('マップタップでピンが刺さり選択ボタンが表示される')
   } catch (e) {
     fail('マップタップでピンが刺さり選択ボタンが表示される', e.message)
@@ -181,7 +186,7 @@ async function main() {
         const btn = document.querySelector('.pin-select-btn')
         return btn && !btn.disabled
       },
-      { timeout: 8000 }
+      { timeout: 10000 }
     )
     await page.click('.pin-select-btn')
     await page.waitForSelector('.mood-btn', { timeout: 3000 })

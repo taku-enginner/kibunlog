@@ -48,6 +48,7 @@ const moodLabels: Record<number, string> = {
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
+const { load: loadGoogleMaps } = useGoogleMaps()
 
 const zoomOptions = [
   { level: 5, label: '広域' },
@@ -61,7 +62,7 @@ const moods = ref<Mood[]>([])
 const loading = ref(true)
 const mapContainer = ref<HTMLElement | null>(null)
 const currentZoom = ref(13)
-let mapInstance: any = null
+let mapInstance: google.maps.Map | null = null
 
 function setZoom(level: number) {
   currentZoom.value = level
@@ -83,32 +84,46 @@ onMounted(async () => {
   await nextTick()
   if (moods.value.length === 0 || !mapContainer.value) return
 
-  const L = await import('leaflet')
-  await import('leaflet/dist/leaflet.css')
+  await loadGoogleMaps()
 
   const first = moods.value[0]
-  const map = L.map(mapContainer.value).setView(
-    [first.latitude!, first.longitude!],
-    currentZoom.value
-  )
-  mapInstance = map
-  map.on('zoomend', () => { currentZoom.value = map.getZoom() })
+  mapInstance = new google.maps.Map(mapContainer.value, {
+    center: { lat: first.latitude!, lng: first.longitude! },
+    zoom: currentZoom.value,
+    mapId: 'kibunrogu-mood-map',
+    disableDefaultUI: true,
+    zoomControl: true,
+  })
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-  }).addTo(map)
+  mapInstance.addListener('zoom_changed', () => {
+    if (mapInstance) currentZoom.value = mapInstance.getZoom() || 13
+  })
 
   for (const mood of moods.value) {
     if (mood.latitude == null || mood.longitude == null) continue
-    L.circleMarker([mood.latitude, mood.longitude], {
-      radius: 10,
-      fillColor: moodColors[mood.level] || '#999',
-      color: '#fff',
-      weight: 2,
-      fillOpacity: 0.85,
+
+    const pin = document.createElement('div')
+    pin.style.width = '20px'
+    pin.style.height = '20px'
+    pin.style.borderRadius = '50%'
+    pin.style.backgroundColor = moodColors[mood.level] || '#999'
+    pin.style.border = '2px solid #fff'
+    pin.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)'
+
+    const { AdvancedMarkerElement } = await google.maps.importLibrary('marker') as google.maps.MarkerLibrary
+    const marker = new AdvancedMarkerElement({
+      map: mapInstance,
+      position: { lat: mood.latitude, lng: mood.longitude },
+      content: pin,
     })
-      .bindPopup(`<b>${mood.place_name || mood.date}</b><br>${mood.date}<br>${moodLabels[mood.level] || ''}<br>${mood.memo || ''}`)
-      .addTo(map)
+
+    const infoWindow = new google.maps.InfoWindow({
+      content: `<b>${mood.place_name || mood.date}</b><br>${mood.date}<br>${moodLabels[mood.level] || ''}<br>${mood.memo || ''}`,
+    })
+
+    marker.addListener('click', () => {
+      infoWindow.open({ anchor: marker, map: mapInstance })
+    })
   }
 })
 </script>
