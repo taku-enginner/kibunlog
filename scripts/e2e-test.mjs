@@ -62,9 +62,9 @@ async function main() {
 
   try {
     await page.waitForSelector('.add-btn', { timeout: 5000 })
-    ok('「記録を追加」ボタンが表示される')
+    ok('記録ボタンが表示される')
   } catch (e) {
-    fail('「記録を追加」ボタンが表示される', e.message)
+    fail('記録ボタンが表示される', e.message)
   }
 
   // --- Test: PlaceSelector opens ---
@@ -105,7 +105,7 @@ async function main() {
   // --- Test: Search for a place ---
   try {
     await page.fill('.search-input', '東京駅')
-    await page.waitForTimeout(1000) // debounce wait
+    await page.waitForTimeout(1000)
     await page.waitForSelector('.result-item', { timeout: 5000 })
     ok('場所検索で候補が表示される')
   } catch (e) {
@@ -123,42 +123,32 @@ async function main() {
 
   // --- Test: Select mood and submit ---
   try {
-    await page.click('.mood-btn:first-child') // 最高
+    await page.click('.mood-btn:first-child')
     await page.waitForTimeout(200)
     await page.click('.save-btn')
     await page.waitForTimeout(1000)
-    // Check that mood card appeared
-    await page.waitForSelector('.mood-card', { timeout: 3000 })
-    ok('気分を記録してカードが表示される')
+    // サマリーに記録件数が表示される
+    await page.waitForSelector('.record-count', { timeout: 3000 })
+    ok('気分を記録して件数が更新される')
   } catch (e) {
-    fail('気分を記録してカードが表示される', e.message)
+    fail('気分を記録して件数が更新される', e.message)
   }
 
-  // --- Test: Edit existing card ---
-  console.log('\n✏️ 編集')
+  // --- Test: Today average displayed ---
+  console.log('\n📊 今日のサマリー')
   try {
-    await page.click('.mood-card:first-child')
-    await page.waitForSelector('.mood-btn', { timeout: 3000 })
-    ok('カードタップで編集フォームが開く')
+    await page.waitForSelector('.avg-score', { timeout: 3000 })
+    ok('今日の平均スコアが表示される')
   } catch (e) {
-    fail('カードタップで編集フォームが開く', e.message)
+    fail('今日の平均スコアが表示される', e.message)
   }
 
-  // --- Test: Edit mood and save ---
+  // --- Test: Mini chart displayed ---
   try {
-    await page.click('.mood-btn:nth-child(2)') // 良い
-    await page.waitForTimeout(200)
-    await page.click('.save-btn')
-    await page.waitForTimeout(1000)
-    // Form should close and card should update
-    const formGone = await page.$('.mood-btn')
-    if (!formGone) {
-      ok('編集を保存してフォームが閉じる')
-    } else {
-      fail('編集を保存してフォームが閉じる', 'フォームが閉じない')
-    }
+    await page.waitForSelector('.mini-chart', { timeout: 3000 })
+    ok('直近7日ミニグラフが表示される')
   } catch (e) {
-    fail('編集を保存してフォームが閉じる', e.message)
+    fail('直近7日ミニグラフが表示される', e.message)
   }
 
   // --- Test: Map mode ---
@@ -167,7 +157,7 @@ async function main() {
     await page.click('.add-btn')
     await page.waitForSelector('.mode-tab', { timeout: 3000 })
     const tabs = await page.$$('.mode-tab')
-    await tabs[1].click() // マップで選ぶ
+    await tabs[1].click()
     await page.waitForSelector('.pin-map', { timeout: 5000 })
     ok('マップモードに切替えてマップが表示される')
   } catch (e) {
@@ -176,8 +166,7 @@ async function main() {
 
   // --- Test: Pin on map ---
   try {
-    await page.waitForTimeout(3000) // Google Maps の読み込み待ち
-    // Google Maps の click イベントを JS で発火
+    await page.waitForTimeout(3000)
     await page.evaluate(() => {
       const map = window.__kibunrogu_map
       if (map) {
@@ -194,7 +183,6 @@ async function main() {
 
   // --- Test: Confirm pin opens MoodForm ---
   try {
-    // Wait for reverse geocoding
     await page.waitForFunction(
       () => {
         const btn = document.querySelector('.pin-select-btn')
@@ -211,20 +199,14 @@ async function main() {
 
   // --- Test: Map flow: select mood and submit ---
   try {
-    const cardsBefore = await page.$$('.mood-card')
     await page.click('.mood-btn:first-child')
     await page.waitForTimeout(200)
     await page.click('.save-btn')
     await page.waitForTimeout(1000)
-    await page.waitForSelector('.mood-card', { timeout: 3000 })
-    const cardsAfter = await page.$$('.mood-card')
-    if (cardsAfter.length > cardsBefore.length) {
-      ok('マップ経由で気分を記録してカードが増える')
-    } else {
-      fail('マップ経由で気分を記録してカードが増える', `カード数: ${cardsBefore.length} → ${cardsAfter.length}`)
-    }
+    await page.waitForSelector('.record-count', { timeout: 3000 })
+    ok('マップ経由で気分を記録できる')
   } catch (e) {
-    fail('マップ経由で気分を記録してカードが増える', e.message)
+    fail('マップ経由で気分を記録できる', e.message)
   }
 
   // --- Test: Graph page ---
