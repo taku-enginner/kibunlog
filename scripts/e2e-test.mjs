@@ -610,15 +610,91 @@ async function main() {
   }
 
   // ============================================
+  // プラスαページ
+  // ============================================
+  console.log('\n💡 プラスαページ')
+  try {
+    await page.goto(BASE_URL + '/insights', { waitUntil: 'networkidle' })
+    await page.waitForSelector('.page-title', { timeout: 5000 })
+    const title = await page.textContent('.page-title')
+    if (title?.includes('プラスα')) {
+      ok('プラスαページタイトルが表示される')
+    } else {
+      fail('プラスαページタイトルが表示される', `タイトル: ${title}`)
+    }
+  } catch (e) {
+    fail('プラスαページタイトルが表示される', e.message)
+  }
+
+  try {
+    const sections = await page.$$('.section')
+    if (sections.length >= 3) {
+      ok(`分析セクションが${sections.length}個表示される`)
+    } else {
+      fail('分析セクションが複数表示される', `セクション数: ${sections.length}`)
+    }
+  } catch (e) {
+    fail('分析セクションが複数表示される', e.message)
+  }
+
+  try {
+    await page.waitForSelector('.section-title', { timeout: 3000 })
+    const titles = await page.$$eval('.section-title', (els) => els.map((e) => e.textContent))
+    const expected = ['週次サマリー', '曜日別', '時間帯別']
+    const found = expected.filter((t) => titles.some((st) => st?.includes(t)))
+    if (found.length === expected.length) {
+      ok('週次サマリー・曜日別・時間帯別セクションが存在する')
+    } else {
+      fail('週次サマリー・曜日別・時間帯別セクションが存在する', `見つかった: ${found.join(', ')}`)
+    }
+  } catch (e) {
+    fail('週次サマリー・曜日別・時間帯別セクションが存在する', e.message)
+  }
+
+  try {
+    await page.waitForSelector('.streak-card', { timeout: 3000 })
+    const cards = await page.$$('.streak-card')
+    if (cards.length === 3) {
+      ok('ストリークカードが3つ表示される')
+    } else {
+      fail('ストリークカードが3つ表示される', `カード数: ${cards.length}`)
+    }
+  } catch (e) {
+    fail('ストリークカードが3つ表示される', e.message)
+  }
+
+  try {
+    const dayBars = await page.$$('.day-col')
+    if (dayBars.length === 7) {
+      ok('曜日別バーが7本表示される')
+    } else {
+      fail('曜日別バーが7本表示される', `バー数: ${dayBars.length}`)
+    }
+  } catch (e) {
+    fail('曜日別バーが7本表示される', e.message)
+  }
+
+  try {
+    const timeBars = await page.$$('.time-col')
+    if (timeBars.length === 5) {
+      ok('時間帯別バーが5本表示される')
+    } else {
+      fail('時間帯別バーが5本表示される', `バー数: ${timeBars.length}`)
+    }
+  } catch (e) {
+    fail('時間帯別バーが5本表示される', e.message)
+  }
+
+  // ============================================
   // ナビゲーション
   // ============================================
   console.log('\n🧭 ナビゲーション')
   try {
     const navItems = await page.$$('.nav-item')
-    if (navItems.length === 4) {
-      ok('ナビバーに4つのタブがある')
+    if (navItems.length === 5) {
+      ok('ナビバーに5つのタブがある')
     } else {
-      fail('ナビバーに4つのタブがある', `タブ数: ${navItems.length}`)
+      fail('ナビバーに5つのタブがある', `タブ数: ${navItems.length}`)
     }
   } catch (e) {
     fail('ナビバーに4つのタブがある', e.message)
@@ -630,6 +706,7 @@ async function main() {
     { index: 1, path: '/graph', label: 'グラフ' },
     { index: 2, path: '/timeline', label: '履歴' },
     { index: 3, path: '/map', label: 'マップ' },
+    { index: 4, path: '/insights', label: '+α' },
   ]
 
   for (const target of navTargets) {
