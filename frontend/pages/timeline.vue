@@ -29,8 +29,15 @@
                 <span v-if="mood.time" class="card-time">{{ mood.time }}</span>
                 {{ mood.place_name || '場所なし' }}
               </span>
-              <span class="card-mood" :style="{ color: moodConfig[mood.level]?.color }">
-                {{ moodConfig[mood.level]?.emoji }} {{ moodConfig[mood.level]?.label }}
+              <span class="card-header-right">
+                <button
+                  v-if="mood.has_image"
+                  class="image-icon-btn"
+                  @click.stop="openImageViewer(mood.id)"
+                >📷</button>
+                <span class="card-mood" :style="{ color: moodConfig[mood.level]?.color }">
+                  {{ moodConfig[mood.level]?.emoji }} {{ moodConfig[mood.level]?.label }}
+                </span>
               </span>
             </div>
             <p v-if="mood.memo" class="card-memo">{{ mood.memo }}</p>
@@ -74,6 +81,21 @@
         </button>
       </div>
 
+      <!-- 画像DLボタン -->
+      <div v-if="hasAnyImage && !downloadMode" class="download-start-row">
+        <button class="download-start-btn" @click="enterDownloadMode">画像DL</button>
+      </div>
+      <div v-if="downloadMode" class="download-mode-bar">
+        <button class="download-cancel-btn" @click="exitDownloadMode">キャンセル</button>
+        <button
+          class="download-exec-btn"
+          :disabled="selectedDownloadIds.length === 0 || downloading"
+          @click="executeDownload"
+        >
+          {{ downloading ? 'DL中...' : `ダウンロード (${selectedDownloadIds.length})` }}
+        </button>
+      </div>
+
       <div v-if="loading" class="loading">読み込み中...</div>
       <div v-else-if="filteredMoods.length === 0" class="empty">記録がありません</div>
       <div v-else class="timeline">
@@ -83,6 +105,14 @@
           class="timeline-item"
           :style="{ borderLeftColor: moodConfig[mood.level]?.bg }"
         >
+          <!-- Download mode checkbox -->
+          <label v-if="downloadMode && mood.has_image" class="download-checkbox-wrap">
+            <input
+              type="checkbox"
+              :checked="selectedDownloadIds.includes(mood.id)"
+              @change="toggleDownloadSelect(mood.id)"
+            />
+          </label>
           <div class="timeline-dot" :style="{ background: moodConfig[mood.level]?.bg }">
             <span class="dot-emoji">{{ moodConfig[mood.level]?.emoji }}</span>
           </div>
@@ -91,18 +121,40 @@
               <span class="timeline-date" :style="{ color: getDateColor(new Date(mood.date + 'T00:00:00')) }">
                 {{ formatDate(mood.date) }}<span v-if="mood.time" class="timeline-time"> {{ mood.time }}</span>
               </span>
-              <span class="timeline-level" :style="{ color: moodConfig[mood.level]?.color }">
-                {{ moodConfig[mood.level]?.label }}
+              <span class="timeline-header-right">
+                <button
+                  v-if="mood.has_image"
+                  class="image-icon-btn"
+                  @click.stop="openImageViewer(mood.id)"
+                >📷</button>
+                <span class="timeline-level" :style="{ color: moodConfig[mood.level]?.color }">
+                  {{ moodConfig[mood.level]?.label }}
+                </span>
               </span>
             </div>
             <p v-if="mood.place_name" class="timeline-place">{{ mood.place_name }}</p>
             <p v-if="mood.memo" class="timeline-memo">{{ mood.memo }}</p>
             <p v-else class="timeline-no-memo">メモなし</p>
           </div>
-          <button class="timeline-delete-btn" @click="deleteMood(mood.id)">✕</button>
+          <button v-if="!downloadMode" class="timeline-delete-btn" @click="deleteMood(mood.id)">✕</button>
         </div>
       </div>
     </template>
+
+    <!-- Image Viewer Overlay -->
+    <Teleport to="body">
+      <div v-if="viewingImageMoodId !== null" class="image-viewer-overlay" @click.self="closeImageViewer">
+        <div class="image-viewer-content">
+          <button class="image-viewer-close" @click="closeImageViewer">✕</button>
+          <div v-if="imageLoading" class="image-viewer-spinner">読み込み中...</div>
+          <img
+            v-else-if="viewingImageUrl"
+            :src="viewingImageUrl"
+            class="image-viewer-img"
+          />
+        </div>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <PlaceSelector
@@ -136,6 +188,7 @@ interface Mood {
   memo?: string | null
   place_id?: number | null
   place_name?: string | null
+  has_image?: boolean
 }
 
 interface Place {
@@ -177,6 +230,18 @@ const loading = ref(true)
 const saving = ref(false)
 const filterLevel = ref<number | null>(null)
 const deleteMode = ref(false)
+
+// Image viewer state
+const viewingImageMoodId = ref<number | null>(null)
+const viewingImageUrl = ref<string | null>(null)
+const imageLoading = ref(false)
+
+// Download mode state
+const downloadMode = ref(false)
+const selectedDownloadIds = ref<number[]>([])
+const downloading = ref(false)
+
+const hasAnyImage = computed(() => allMoods.value.some((m) => m.has_image))
 
 // Edit state
 const showPlaceSelector = ref(false)
@@ -244,7 +309,7 @@ function onChangePlace(data: { level: number | null; memo: string | null }) {
   showPlaceSelector.value = true
 }
 
-async function onMoodSubmit(data: { level: number; memo: string | null }) {
+async function onMoodSubmit(data: { level: number; memo: string | null; image: File | null }) {
   saving.value = true
   try {
     if (editingMood.value) {
@@ -261,6 +326,19 @@ async function onMoodSubmit(data: { level: number; memo: string | null }) {
       })
       const idx = allMoods.value.findIndex((m) => m.id === editingMood.value!.id)
       if (idx >= 0) allMoods.value[idx] = updated
+
+      // Upload image if selected
+      if (data.image) {
+        const formData = new FormData()
+        formData.append('file', data.image)
+        await $fetch(`${apiBase}/moods/${updated.id}/image`, {
+          method: 'POST',
+          body: formData,
+          headers: getHeaders(),
+        })
+        const moodIdx = allMoods.value.findIndex((m) => m.id === updated.id)
+        if (moodIdx >= 0) allMoods.value[moodIdx] = { ...allMoods.value[moodIdx], has_image: true }
+      }
     }
     cancelForm()
   } catch {}
@@ -280,6 +358,74 @@ async function deleteMood(id: number) {
     })
     allMoods.value = allMoods.value.filter((m) => m.id !== id)
   } catch {}
+}
+
+// --- Image viewer ---
+async function openImageViewer(moodId: number) {
+  viewingImageMoodId.value = moodId
+  viewingImageUrl.value = null
+  imageLoading.value = true
+  try {
+    const blob = await $fetch<Blob>(`${apiBase}/moods/${moodId}/image`, {
+      headers: getHeaders(),
+      responseType: 'blob',
+    })
+    viewingImageUrl.value = URL.createObjectURL(blob)
+  } catch {
+    viewingImageUrl.value = null
+  }
+  imageLoading.value = false
+}
+
+function closeImageViewer() {
+  if (viewingImageUrl.value) {
+    URL.revokeObjectURL(viewingImageUrl.value)
+  }
+  viewingImageMoodId.value = null
+  viewingImageUrl.value = null
+}
+
+// --- Download mode ---
+function enterDownloadMode() {
+  downloadMode.value = true
+  selectedDownloadIds.value = []
+}
+
+function exitDownloadMode() {
+  downloadMode.value = false
+  selectedDownloadIds.value = []
+}
+
+function toggleDownloadSelect(id: number) {
+  const idx = selectedDownloadIds.value.indexOf(id)
+  if (idx >= 0) {
+    selectedDownloadIds.value.splice(idx, 1)
+  } else {
+    selectedDownloadIds.value.push(id)
+  }
+}
+
+async function executeDownload() {
+  if (selectedDownloadIds.value.length === 0) return
+  downloading.value = true
+  try {
+    const blob = await $fetch<Blob>(`${apiBase}/moods/images/download`, {
+      method: 'POST',
+      body: { mood_ids: selectedDownloadIds.value },
+      headers: getHeaders(),
+      responseType: 'blob',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'mood_images.zip'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    exitDownloadMode()
+  } catch {}
+  downloading.value = false
 }
 
 function formatDate(dateStr: string): string {
@@ -575,5 +721,139 @@ function formatDate(dateStr: string): string {
 
 .timeline-delete-btn:active {
   color: #d32f2f;
+}
+
+/* Image icon */
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timeline-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.image-icon-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+
+/* Image viewer overlay */
+.image-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-viewer-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-viewer-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 8px;
+  z-index: 1;
+}
+
+.image-viewer-spinner {
+  color: #fff;
+  font-size: 16px;
+}
+
+.image-viewer-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+/* Download mode */
+.download-start-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.download-start-btn {
+  background: #007aff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.download-mode-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.download-cancel-btn {
+  background: none;
+  border: 1px solid #d1d1d6;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6e6e73;
+  cursor: pointer;
+}
+
+.download-exec-btn {
+  background: #007aff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.download-exec-btn:disabled {
+  opacity: 0.5;
+}
+
+.download-checkbox-wrap {
+  flex-shrink: 0;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+}
+
+.download-checkbox-wrap input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
 }
 </style>

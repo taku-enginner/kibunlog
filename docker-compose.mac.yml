@@ -23,6 +23,8 @@ services:
       DB_USER: root
       DB_PASSWORD: password
       DB_NAME: kibunrogu
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -39,3 +41,4 @@ services:
 
 volumes:
   db_data_local:
+  uploads_data:

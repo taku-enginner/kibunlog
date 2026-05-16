@@ -6,3 +6,5 @@ cryptography
 python-dotenv
 pyjwt
 bcrypt
+Pillow
+python-multipart

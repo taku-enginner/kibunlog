@@ -1,5 +1,10 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+import io
+import zipfile
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -10,6 +15,7 @@ from auth import (
     verify_password,
 )
 from database import Base, engine, get_db
+from image_utils import UPLOAD_BASE, delete_image_files, process_upload
 from models import HeatmapEvent, Mood, Place, User
 
 Base.metadata.create_all(bind=engine)
@@ -139,6 +145,7 @@ class MoodOut(BaseModel):
     place_name: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    has_image: bool = False
 
 
 def _mood_to_out(mood: Mood, place: Place | None) -> MoodOut:
@@ -152,6 +159,7 @@ def _mood_to_out(mood: Mood, place: Place | None) -> MoodOut:
         place_name=place.name if place else None,
         latitude=place.latitude if place else None,
         longitude=place.longitude if place else None,
+        has_image=mood.image_path is not None,
     )
 
 
@@ -170,6 +178,110 @@ def record_mood(
     db.refresh(mood)
     place = db.query(Place).filter(Place.id == mood.place_id).first() if mood.place_id else None
     return _mood_to_out(mood, place)
+
+
+class ImageDownloadIn(BaseModel):
+    mood_ids: list[int]
+
+
+@app.post("/moods/images/download")
+def download_images(
+    body: ImageDownloadIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    moods = (
+        db.query(Mood)
+        .filter(Mood.id.in_(body.mood_ids), Mood.user_id == user.id, Mood.image_path.isnot(None))
+        .all()
+    )
+    if not moods:
+        raise HTTPException(status_code=404, detail="No images found")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for mood in moods:
+            file_path = UPLOAD_BASE / str(user.id) / "original" / mood.image_path
+            if file_path.exists():
+                zf.write(file_path, mood.image_path)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=mood_images.zip"},
+    )
+
+
+@app.post("/moods/{mood_id}/image", response_model=MoodOut)
+def upload_mood_image(
+    mood_id: int,
+    file: UploadFile,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    mood = db.query(Mood).filter(Mood.id == mood_id, Mood.user_id == user.id).first()
+    if not mood:
+        raise HTTPException(status_code=404, detail="Mood not found")
+
+    # Delete old image if exists
+    if mood.image_path:
+        delete_image_files(user.id, mood.image_path)
+
+    file_bytes = file.file.read()
+
+    # Attach place_name for filename generation
+    place = db.query(Place).filter(Place.id == mood.place_id).first() if mood.place_id else None
+    mood.place_name_for_image = place.name if place else None
+
+    filename = process_upload(file_bytes, user.id, mood)
+    mood.image_path = filename
+    db.commit()
+    db.refresh(mood)
+    return _mood_to_out(mood, place)
+
+
+@app.get("/moods/{mood_id}/image/thumb")
+def get_mood_image_thumb(
+    mood_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    mood = db.query(Mood).filter(Mood.id == mood_id, Mood.user_id == user.id).first()
+    if not mood or not mood.image_path:
+        raise HTTPException(status_code=404, detail="Image not found")
+    file_path = UPLOAD_BASE / str(user.id) / "thumb" / mood.image_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Thumbnail file not found")
+    return FileResponse(file_path, media_type="image/webp")
+
+
+@app.get("/moods/{mood_id}/image")
+def get_mood_image(
+    mood_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    mood = db.query(Mood).filter(Mood.id == mood_id, Mood.user_id == user.id).first()
+    if not mood or not mood.image_path:
+        raise HTTPException(status_code=404, detail="Image not found")
+    file_path = UPLOAD_BASE / str(user.id) / "original" / mood.image_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Image file not found")
+    return FileResponse(file_path, media_type="image/webp")
+
+
+@app.delete("/moods/{mood_id}/image", status_code=204)
+def delete_mood_image(
+    mood_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    mood = db.query(Mood).filter(Mood.id == mood_id, Mood.user_id == user.id).first()
+    if not mood or not mood.image_path:
+        raise HTTPException(status_code=404, detail="Image not found")
+    delete_image_files(user.id, mood.image_path)
+    mood.image_path = None
+    db.commit()
 
 
 @app.put("/moods/{mood_id}", response_model=MoodOut)
@@ -202,6 +314,8 @@ def delete_mood(
     mood = db.query(Mood).filter(Mood.id == mood_id, Mood.user_id == user.id).first()
     if not mood:
         raise HTTPException(status_code=404, detail="Mood not found")
+    if mood.image_path:
+        delete_image_files(user.id, mood.image_path)
     db.delete(mood)
     db.commit()
 

@@ -33,6 +33,24 @@
         rows="4"
       />
 
+      <!-- 画像追加 -->
+      <div class="image-section">
+        <button v-if="!imagePreview" class="image-add-btn" @click="triggerFileInput">
+          📷 写真を追加
+        </button>
+        <div v-else class="image-preview-wrap">
+          <img :src="imagePreview" class="image-preview" />
+          <button class="image-remove-btn" @click="removeImage">✕</button>
+        </div>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/*"
+          class="image-file-input"
+          @change="onFileSelected"
+        />
+      </div>
+
       <button
         class="save-btn"
         :disabled="selectedLevel === null || saving"
@@ -53,7 +71,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  submit: [data: { level: number; memo: string | null }]
+  submit: [data: { level: number; memo: string | null; image: File | null }]
   close: []
   changePlace: [data: { level: number | null; memo: string | null }]
 }>()
@@ -76,10 +94,34 @@ const moodOptions = [
 
 const selectedLevel = ref<number | null>(props.initialLevel ?? null)
 const memo = ref(props.initialMemo ?? '')
+const selectedImage = ref<File | null>(null)
+const imagePreview = ref<string | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+function triggerFileInput() {
+  fileInput.value?.click()
+}
+
+function onFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  selectedImage.value = file
+  imagePreview.value = URL.createObjectURL(file)
+}
+
+function removeImage() {
+  if (imagePreview.value) {
+    URL.revokeObjectURL(imagePreview.value)
+  }
+  selectedImage.value = null
+  imagePreview.value = null
+  if (fileInput.value) fileInput.value.value = ''
+}
 
 function submit() {
   if (selectedLevel.value === null) return
-  emit('submit', { level: selectedLevel.value, memo: memo.value || null })
+  emit('submit', { level: selectedLevel.value, memo: memo.value || null, image: selectedImage.value })
 }
 </script>
 
@@ -188,6 +230,56 @@ function submit() {
 
 .memo-input:focus {
   border-color: #007aff;
+}
+
+.image-section {
+  margin-bottom: 12px;
+}
+
+.image-add-btn {
+  background: none;
+  border: 1px dashed #d1d1d6;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #007aff;
+  cursor: pointer;
+  width: 100%;
+}
+
+.image-file-input {
+  display: none;
+}
+
+.image-preview-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.image-preview {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+}
+
+.image-remove-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #d32f2f;
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .save-btn {

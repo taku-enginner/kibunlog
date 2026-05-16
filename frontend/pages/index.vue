@@ -70,6 +70,7 @@ interface Mood {
   memo?: string | null
   place_id?: number | null
   place_name?: string | null
+  has_image?: boolean
 }
 
 interface Place {
@@ -206,9 +207,10 @@ function onChangePlace(data: { level: number | null; memo: string | null }) {
   showPlaceSelector.value = true
 }
 
-async function onMoodSubmit(data: { level: number; memo: string | null }) {
+async function onMoodSubmit(data: { level: number; memo: string | null; image: File | null }) {
   saving.value = true
   try {
+    let moodId: number | null = null
     if (editingMood.value) {
       const updated = await $fetch<Mood>(`${apiBase}/moods/${editingMood.value.id}`, {
         method: 'PUT',
@@ -221,6 +223,7 @@ async function onMoodSubmit(data: { level: number; memo: string | null }) {
         },
         headers: getHeaders(),
       })
+      moodId = updated.id
       const idx = todayMoods.value.findIndex((m) => m.id === editingMood.value!.id)
       if (idx >= 0) todayMoods.value[idx] = updated
     } else {
@@ -237,8 +240,24 @@ async function onMoodSubmit(data: { level: number; memo: string | null }) {
         },
         headers: getHeaders(),
       })
+      moodId = created.id
       todayMoods.value.push(created)
     }
+
+    // Upload image if selected
+    if (data.image && moodId) {
+      const formData = new FormData()
+      formData.append('file', data.image)
+      await $fetch(`${apiBase}/moods/${moodId}/image`, {
+        method: 'POST',
+        body: formData,
+        headers: getHeaders(),
+      })
+      // Update local state
+      const idx = todayMoods.value.findIndex((m) => m.id === moodId)
+      if (idx >= 0) todayMoods.value[idx] = { ...todayMoods.value[idx], has_image: true }
+    }
+
     cancelForm()
   } catch {}
   saving.value = false
