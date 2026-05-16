@@ -449,15 +449,55 @@ async function main() {
   }
 
   // ============================================
-  // 今日タブ — 編集フロー
+  // 今日タブ — 詳細表示フロー
+  // ============================================
+  console.log('\n📋 今日タブ — 詳細表示フロー')
+  try {
+    await page.click('.mood-card:first-child')
+    await page.waitForSelector('.detail-overlay', { timeout: 3000 })
+    ok('カードタップで詳細ビューが開く')
+  } catch (e) {
+    fail('カードタップで詳細ビューが開く', e.message)
+  }
+
+  // 詳細ビューに編集ボタンがある
+  try {
+    const editBtn = await page.$('.detail-edit-btn')
+    if (editBtn) {
+      ok('詳細ビューに編集ボタンが表示される')
+    } else {
+      fail('詳細ビューに編集ボタンが表示される', 'ボタンが見つからない')
+    }
+  } catch (e) {
+    fail('詳細ビューに編集ボタンが表示される', e.message)
+  }
+
+  // 詳細ビューの閉じるボタン
+  try {
+    await page.click('.detail-close-btn')
+    await page.waitForTimeout(300)
+    const overlay = await page.$('.detail-overlay')
+    if (!overlay) {
+      ok('詳細ビューの✕ボタンで閉じる')
+    } else {
+      fail('詳細ビューの✕ボタンで閉じる', 'まだ開いている')
+    }
+  } catch (e) {
+    fail('詳細ビューの✕ボタンで閉じる', e.message)
+  }
+
+  // ============================================
+  // 今日タブ — 編集フロー（詳細→編集）
   // ============================================
   console.log('\n✏️ 今日タブ — 編集フロー')
   try {
     await page.click('.mood-card:first-child')
+    await page.waitForSelector('.detail-edit-btn', { timeout: 3000 })
+    await page.click('.detail-edit-btn')
     await page.waitForSelector('.mood-btn', { timeout: 3000 })
-    ok('カードタップでMoodFormが開く')
+    ok('詳細ビューの編集ボタンでMoodFormが開く')
   } catch (e) {
-    fail('カードタップでMoodFormが開く', e.message)
+    fail('詳細ビューの編集ボタンでMoodFormが開く', e.message)
   }
 
   // 編集で別の気分を選択して保存
@@ -990,11 +1030,13 @@ async function main() {
     fail('PlaceSelectorの✕ボタンでモーダルが閉じる', e.message)
   }
 
-  // MoodFormの閉じるボタン（今日タブのカード経由で開く）
+  // MoodFormの閉じるボタン（今日タブのカード→詳細→編集で開く）
   try {
     await page.goto(BASE_URL + '/timeline', { waitUntil: 'networkidle' })
     await page.waitForSelector('.mood-card', { timeout: 5000 })
     await page.click('.mood-card:first-child')
+    await page.waitForSelector('.detail-edit-btn', { timeout: 3000 })
+    await page.click('.detail-edit-btn')
     await page.waitForSelector('.mood-btn', { timeout: 3000 })
     await page.click('.sheet .close-btn')
     await page.waitForTimeout(300)
@@ -1008,14 +1050,13 @@ async function main() {
     fail('MoodFormの✕ボタンでモーダルが閉じる', e.message)
   }
 
-  // MoodFormの保存ボタン disabled状態（気分未選択時 — 今日タブのカード経由）
+  // MoodFormの保存ボタン（今日タブのカード→詳細→編集で開く）
   try {
     await page.goto(BASE_URL + '/timeline', { waitUntil: 'networkidle' })
     await page.waitForSelector('.mood-card', { timeout: 5000 })
-    // カードをクリックしてMoodFormを開く（既存の気分が選択された状態）
-    // → 別の気分を選択解除はできないので、このテストはスキップ
-    // 代わりに保存ボタンが存在することを確認
     await page.click('.mood-card:first-child')
+    await page.waitForSelector('.detail-edit-btn', { timeout: 3000 })
+    await page.click('.detail-edit-btn')
     await page.waitForSelector('.save-btn', { timeout: 3000 })
     ok('MoodFormに保存ボタンが表示される')
     await page.click('.sheet .close-btn')
@@ -1037,6 +1078,8 @@ async function main() {
     await page.goto(BASE_URL + '/timeline', { waitUntil: 'networkidle' })
     await page.waitForSelector('.mood-card', { timeout: 5000 })
     await page.click('.mood-card:first-child')
+    await page.waitForSelector('.detail-edit-btn', { timeout: 3000 })
+    await page.click('.detail-edit-btn')
     await page.waitForSelector('.place-name-btn', { timeout: 3000 })
     await page.click('.place-name-btn')
     // PlaceSelectorが再表示される

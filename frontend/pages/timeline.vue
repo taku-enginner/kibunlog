@@ -22,7 +22,7 @@
             :key="mood.id"
             class="mood-card"
             :style="{ borderLeftColor: moodConfig[mood.level]?.bg }"
-            @click="startEdit(mood)"
+            @click="openDetail(mood)"
           >
             <div class="card-header">
               <span class="card-place">
@@ -142,6 +142,47 @@
       </div>
     </template>
 
+    <!-- Detail View Overlay (today tab) -->
+    <Teleport to="body">
+      <div
+        v-if="detailMood"
+        class="detail-overlay"
+        @click.self="closeDetail"
+        @touchstart="onDetailTouchStart"
+        @touchend="onDetailTouchEnd"
+      >
+        <div class="detail-view">
+          <div class="detail-view-header">
+            <button class="detail-close-btn" @click="closeDetail">✕</button>
+            <span class="detail-view-counter" v-if="detailListIds.length > 1">
+              {{ detailListIds.indexOf(detailMood.id) + 1 }} / {{ detailListIds.length }}
+            </span>
+            <button class="detail-edit-btn" @click="editFromDetail">編集</button>
+          </div>
+
+          <div class="detail-view-body">
+            <div class="detail-view-mood" :style="{ color: moodConfig[detailMood.level]?.color }">
+              {{ moodConfig[detailMood.level]?.emoji }} {{ moodConfig[detailMood.level]?.label }}
+            </div>
+            <div class="detail-view-meta">
+              <span v-if="detailMood.time" class="detail-view-time">{{ detailMood.time }}</span>
+              <span class="detail-view-place">{{ detailMood.place_name || '場所なし' }}</span>
+            </div>
+            <p v-if="detailMood.memo" class="detail-view-memo">{{ detailMood.memo }}</p>
+            <p v-else class="detail-view-memo detail-view-no-memo">メモなし</p>
+
+            <!-- 画像 -->
+            <div v-if="detailMood.has_image" class="detail-view-image">
+              <div v-if="detailImageLoading" class="detail-image-spinner">読み込み中...</div>
+              <img v-else-if="detailImageUrl" :src="detailImageUrl" class="detail-img" />
+            </div>
+          </div>
+
+          <div v-if="detailListIds.length > 1" class="detail-swipe-hint">← スワイプで前後に移動 →</div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- Image Viewer Overlay -->
     <Teleport to="body">
       <div
@@ -250,6 +291,14 @@ const imageLoading = ref(false)
 const imageListIds = ref<number[]>([]) // ordered list of mood IDs with images for swipe nav
 const swipeStartX = ref(0)
 const swipeStartY = ref(0)
+
+// Detail view state (today tab)
+const detailMood = ref<Mood | null>(null)
+const detailListIds = ref<number[]>([])
+const detailSwipeStartX = ref(0)
+const detailSwipeStartY = ref(0)
+const detailImageUrl = ref<string | null>(null)
+const detailImageLoading = ref(false)
 
 // Download mode state
 const downloadMode = ref(false)
@@ -433,6 +482,75 @@ function closeImageViewer() {
   viewingImageMoodId.value = null
   viewingImageUrl.value = null
   imageListIds.value = []
+}
+
+// --- Detail view (today tab) ---
+function openDetail(mood: Mood) {
+  if (deleteMode.value) return
+  detailListIds.value = todayMoods.value.map((m) => m.id)
+  showDetailForMood(mood)
+}
+
+async function showDetailForMood(mood: Mood) {
+  detailMood.value = mood
+  // Load image if available
+  if (detailImageUrl.value) {
+    URL.revokeObjectURL(detailImageUrl.value)
+    detailImageUrl.value = null
+  }
+  if (mood.has_image) {
+    detailImageLoading.value = true
+    try {
+      const blob = await $fetch<Blob>(`${apiBase}/moods/${mood.id}/image`, {
+        headers: getHeaders(),
+        responseType: 'blob',
+      })
+      detailImageUrl.value = URL.createObjectURL(blob)
+    } catch {
+      detailImageUrl.value = null
+    }
+    detailImageLoading.value = false
+  }
+}
+
+function closeDetail() {
+  if (detailImageUrl.value) {
+    URL.revokeObjectURL(detailImageUrl.value)
+  }
+  detailMood.value = null
+  detailImageUrl.value = null
+  detailListIds.value = []
+}
+
+function editFromDetail() {
+  const mood = detailMood.value
+  if (!mood) return
+  closeDetail()
+  startEdit(mood)
+}
+
+function navigateDetail(direction: 'prev' | 'next') {
+  if (!detailMood.value || detailListIds.value.length <= 1) return
+  const currentIdx = detailListIds.value.indexOf(detailMood.value.id)
+  if (currentIdx < 0) return
+  let nextIdx = direction === 'next' ? currentIdx + 1 : currentIdx - 1
+  if (nextIdx >= detailListIds.value.length) nextIdx = 0
+  if (nextIdx < 0) nextIdx = detailListIds.value.length - 1
+  const nextMood = allMoods.value.find((m) => m.id === detailListIds.value[nextIdx])
+  if (nextMood) showDetailForMood(nextMood)
+}
+
+function onDetailTouchStart(e: TouchEvent) {
+  detailSwipeStartX.value = e.touches[0].clientX
+  detailSwipeStartY.value = e.touches[0].clientY
+}
+
+function onDetailTouchEnd(e: TouchEvent) {
+  const dx = e.changedTouches[0].clientX - detailSwipeStartX.value
+  const dy = e.changedTouches[0].clientY - detailSwipeStartY.value
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+    navigateDetail(dx < 0 ? 'next' : 'prev')
+  }
 }
 
 // --- Download mode ---
@@ -942,5 +1060,130 @@ function formatDate(dateStr: string): string {
   width: 20px;
   height: 20px;
   cursor: pointer;
+}
+
+/* Detail View Overlay */
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.detail-view {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.detail-close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.detail-view-counter {
+  font-size: 13px;
+  color: #999;
+}
+
+.detail-edit-btn {
+  background: #007aff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detail-view-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.detail-view-mood {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.detail-view-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 16px;
+}
+
+.detail-view-time {
+  font-weight: 600;
+}
+
+.detail-view-place {
+  color: #888;
+}
+
+.detail-view-memo {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #333;
+  white-space: pre-wrap;
+  margin-bottom: 16px;
+}
+
+.detail-view-no-memo {
+  color: #ccc;
+  font-style: italic;
+}
+
+.detail-view-image {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.detail-image-spinner {
+  color: #999;
+  font-size: 13px;
+  padding: 20px;
+}
+
+.detail-img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.detail-swipe-hint {
+  text-align: center;
+  font-size: 12px;
+  color: #bbb;
+  padding: 8px;
+  border-top: 1px solid #eee;
+  flex-shrink: 0;
 }
 </style>
