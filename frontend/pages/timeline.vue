@@ -104,6 +104,7 @@
           :key="mood.id"
           class="timeline-item"
           :style="{ borderLeftColor: moodConfig[mood.level]?.bg }"
+          @click="mood.has_image && !downloadMode ? openImageViewer(mood.id) : undefined"
         >
           <!-- Download mode checkbox -->
           <label v-if="downloadMode && mood.has_image" class="download-checkbox-wrap">
