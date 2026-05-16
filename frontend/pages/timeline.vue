@@ -165,8 +165,9 @@
               {{ moodConfig[detailMood.level]?.emoji }} {{ moodConfig[detailMood.level]?.label }}
             </div>
             <div class="detail-view-meta">
+              <span class="detail-view-date">{{ formatDate(detailMood.date) }}</span>
               <span v-if="detailMood.time" class="detail-view-time">{{ detailMood.time }}</span>
-              <span class="detail-view-place">{{ detailMood.place_name || '場所なし' }}</span>
+              <span class="detail-view-place">{{ detailMood.place_name || '���所なし' }}</span>
             </div>
             <p v-if="detailMood.memo" class="detail-view-memo">{{ detailMood.memo }}</p>
             <p v-else class="detail-view-memo detail-view-no-memo">メモなし</p>
