@@ -47,14 +47,16 @@
 
         <div v-if="places.length > 0" class="registered">
           <p class="section-label">登録済みの場所</p>
-          <button
+          <div
             v-for="place in places"
             :key="place.id"
-            class="place-item"
-            @click="$emit('select', place)"
+            class="place-item-row"
           >
-            {{ place.name }}
-          </button>
+            <button class="place-item" @click="$emit('select', place)">
+              {{ place.name }}
+            </button>
+            <button class="place-delete-btn" @click="deletePlace(place.id)">✕</button>
+          </div>
         </div>
       </template>
 
@@ -248,6 +250,17 @@ async function confirmPin() {
       headers: getHeaders(),
     })
     emit('select', place)
+  } catch {}
+}
+
+async function deletePlace(placeId: number) {
+  if (!confirm('この場所を削除しますか？')) return
+  try {
+    await $fetch(`${apiBase}/places/${placeId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    })
+    places.value = places.value.filter((p) => p.id !== placeId)
   } catch {}
 }
 
@@ -457,9 +470,15 @@ function useCurrentLocation() {
   margin-top: 8px;
 }
 
+.place-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .place-item {
-  display: block;
-  width: 100%;
+  flex: 1;
   text-align: left;
   padding: 12px;
   background: #fff;
@@ -467,11 +486,31 @@ function useCurrentLocation() {
   border-radius: 10px;
   font-size: 15px;
   cursor: pointer;
-  margin-bottom: 6px;
 }
 
 .place-item:active {
   background: #f0f0f0;
+}
+
+.place-delete-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 50%;
+  font-size: 14px;
+  color: #999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.place-delete-btn:active {
+  background: #fee;
+  color: #d32f2f;
+  border-color: #d32f2f;
 }
 
 .pin-map {
