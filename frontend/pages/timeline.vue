@@ -104,7 +104,7 @@
           :key="mood.id"
           class="timeline-item"
           :style="{ borderLeftColor: moodConfig[mood.level]?.bg }"
-          @click="mood.has_image && !downloadMode ? openImageViewer(mood.id) : undefined"
+          @click="!downloadMode ? openHistoryDetail(mood) : undefined"
         >
           <!-- Download mode checkbox -->
           <label v-if="downloadMode && mood.has_image" class="download-checkbox-wrap">
@@ -137,7 +137,7 @@
             <p v-if="mood.memo" class="timeline-memo">{{ mood.memo }}</p>
             <p v-else class="timeline-no-memo">メモなし</p>
           </div>
-          <button v-if="!downloadMode" class="timeline-delete-btn" @click="deleteMood(mood.id)">✕</button>
+          <button v-if="!downloadMode" class="timeline-delete-btn" @click.stop="deleteMood(mood.id)">✕</button>
         </div>
       </div>
     </template>
@@ -484,10 +484,15 @@ function closeImageViewer() {
   imageListIds.value = []
 }
 
-// --- Detail view (today tab) ---
+// --- Detail view ---
 function openDetail(mood: Mood) {
   if (deleteMode.value) return
   detailListIds.value = todayMoods.value.map((m) => m.id)
+  showDetailForMood(mood)
+}
+
+function openHistoryDetail(mood: Mood) {
+  detailListIds.value = filteredMoods.value.map((m) => m.id)
   showDetailForMood(mood)
 }
 
@@ -1079,7 +1084,7 @@ function formatDate(dateStr: string): string {
   border-radius: 16px;
   width: 100%;
   max-width: 400px;
-  max-height: 80vh;
+  height: 70vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1121,14 +1126,17 @@ function formatDate(dateStr: string): string {
 
 .detail-view-body {
   padding: 20px;
-  overflow-y: auto;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .detail-view-mood {
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .detail-view-meta {
@@ -1136,7 +1144,8 @@ function formatDate(dateStr: string): string {
   gap: 12px;
   font-size: 14px;
   color: #666;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .detail-view-time {
@@ -1152,7 +1161,10 @@ function formatDate(dateStr: string): string {
   line-height: 1.6;
   color: #333;
   white-space: pre-wrap;
-  margin-bottom: 16px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  margin-bottom: 8px;
 }
 
 .detail-view-no-memo {
@@ -1161,19 +1173,22 @@ function formatDate(dateStr: string): string {
 }
 
 .detail-view-image {
+  flex-shrink: 0;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-top: 8px;
-  text-align: center;
 }
 
 .detail-image-spinner {
   color: #999;
   font-size: 13px;
-  padding: 20px;
 }
 
 .detail-img {
   max-width: 100%;
-  max-height: 300px;
+  max-height: 200px;
   border-radius: 8px;
   object-fit: contain;
 }

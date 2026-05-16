@@ -318,11 +318,11 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
       ticks: {
         stepSize: 1,
         callback: (value: any) => {
-          if (value === 5) return '😆 最高'
-          if (value === 4) return '😊 良い'
-          if (value === 3) return '😐 普通'
-          if (value === 2) return '😣 いまいち'
-          if (value === 1) return '😵 しんどい'
+          if (value === 5) return '5 😆 最高'
+          if (value === 4) return '4 😊 良い'
+          if (value === 3) return '3 😐 普通'
+          if (value === 2) return '2 😣 いまいち'
+          if (value === 1) return '1 😵 しんどい'
           return ''
         },
       },
