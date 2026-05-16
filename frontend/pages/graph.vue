@@ -313,18 +313,21 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
   },
   scales: {
     y: {
-      min: 0.5,
-      max: 5.5,
+      min: 1,
+      max: 5,
       ticks: {
         stepSize: 1,
+        display: true,
+        font: { size: 11 },
         callback: (value: any) => {
-          const v = Number(value)
-          if (v === 5) return '5 😆 最高'
-          if (v === 4) return '4 😊 良い'
-          if (v === 3) return '3 😐 普通'
-          if (v === 2) return '2 😣 いまいち'
-          if (v === 1) return '1 😵 しんどい'
-          return ''
+          const labels: Record<number, string> = {
+            5: '5 最高',
+            4: '4 良い',
+            3: '3 普通',
+            2: '2 いまいち',
+            1: '1 しんどい',
+          }
+          return labels[Number(value)] ?? ''
         },
       },
       grid: {
