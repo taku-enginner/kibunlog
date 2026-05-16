@@ -144,15 +144,26 @@
 
     <!-- Image Viewer Overlay -->
     <Teleport to="body">
-      <div v-if="viewingImageMoodId !== null" class="image-viewer-overlay" @click.self="closeImageViewer">
+      <div
+        v-if="viewingImageMoodId !== null"
+        class="image-viewer-overlay"
+        @click.self="closeImageViewer"
+        @touchstart="onViewerTouchStart"
+        @touchend="onViewerTouchEnd"
+      >
         <div class="image-viewer-content">
           <button class="image-viewer-close" @click="closeImageViewer">✕</button>
+          <button v-if="imageListIds.length > 1" class="image-nav-btn image-nav-prev" @click="navigateImage('prev')">‹</button>
           <div v-if="imageLoading" class="image-viewer-spinner">読み込み中...</div>
           <img
             v-else-if="viewingImageUrl"
             :src="viewingImageUrl"
             class="image-viewer-img"
           />
+          <button v-if="imageListIds.length > 1" class="image-nav-btn image-nav-next" @click="navigateImage('next')">›</button>
+          <div v-if="imageListIds.length > 1" class="image-viewer-counter">
+            {{ imageListIds.indexOf(viewingImageMoodId!) + 1 }} / {{ imageListIds.length }}
+          </div>
         </div>
       </div>
     </Teleport>
@@ -236,6 +247,9 @@ const deleteMode = ref(false)
 const viewingImageMoodId = ref<number | null>(null)
 const viewingImageUrl = ref<string | null>(null)
 const imageLoading = ref(false)
+const imageListIds = ref<number[]>([]) // ordered list of mood IDs with images for swipe nav
+const swipeStartX = ref(0)
+const swipeStartY = ref(0)
 
 // Download mode state
 const downloadMode = ref(false)
@@ -362,7 +376,17 @@ async function deleteMood(id: number) {
 }
 
 // --- Image viewer ---
-async function openImageViewer(moodId: number) {
+function openImageViewer(moodId: number) {
+  // Build ordered list of image-bearing mood IDs from current view context
+  const sourceList = activeTab.value === 'today' ? todayMoods.value : filteredMoods.value
+  imageListIds.value = sourceList.filter((m) => m.has_image).map((m) => m.id)
+  loadImage(moodId)
+}
+
+async function loadImage(moodId: number) {
+  if (viewingImageUrl.value) {
+    URL.revokeObjectURL(viewingImageUrl.value)
+  }
   viewingImageMoodId.value = moodId
   viewingImageUrl.value = null
   imageLoading.value = true
@@ -378,12 +402,37 @@ async function openImageViewer(moodId: number) {
   imageLoading.value = false
 }
 
+function navigateImage(direction: 'prev' | 'next') {
+  if (imageListIds.value.length <= 1) return
+  const currentIdx = imageListIds.value.indexOf(viewingImageMoodId.value!)
+  if (currentIdx < 0) return
+  let nextIdx = direction === 'next' ? currentIdx + 1 : currentIdx - 1
+  if (nextIdx >= imageListIds.value.length) nextIdx = 0
+  if (nextIdx < 0) nextIdx = imageListIds.value.length - 1
+  loadImage(imageListIds.value[nextIdx])
+}
+
+function onViewerTouchStart(e: TouchEvent) {
+  swipeStartX.value = e.touches[0].clientX
+  swipeStartY.value = e.touches[0].clientY
+}
+
+function onViewerTouchEnd(e: TouchEvent) {
+  const dx = e.changedTouches[0].clientX - swipeStartX.value
+  const dy = e.changedTouches[0].clientY - swipeStartY.value
+  // Only trigger if horizontal swipe > 50px and more horizontal than vertical
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+    navigateImage(dx < 0 ? 'next' : 'prev')
+  }
+}
+
 function closeImageViewer() {
   if (viewingImageUrl.value) {
     URL.revokeObjectURL(viewingImageUrl.value)
   }
   viewingImageMoodId.value = null
   viewingImageUrl.value = null
+  imageListIds.value = []
 }
 
 // --- Download mode ---
@@ -786,9 +835,46 @@ function formatDate(dateStr: string): string {
 
 .image-viewer-img {
   max-width: 90vw;
-  max-height: 85vh;
+  max-height: 75vh;
   border-radius: 8px;
   object-fit: contain;
+}
+
+.image-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  font-size: 32px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+}
+
+.image-nav-prev {
+  left: 12px;
+}
+
+.image-nav-next {
+  right: 12px;
+}
+
+.image-viewer-counter {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 12px;
 }
 
 /* Download mode */
