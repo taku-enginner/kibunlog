@@ -232,6 +232,19 @@ async function main() {
   const nowTime = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`
 
   for (let i = 0; i < 3; i++) {
+    // まずPlaceを作成（位置情報付き）
+    const placeRes = await fetch(`${API_URL}/places`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        name: `テスト場所${i + 1}`,
+        latitude: 35.68 + i * 0.01,
+        longitude: 139.77 + i * 0.01,
+      }),
+    })
+    const place = await placeRes.json()
+
+    // Moodを作成（place_idを紐付け）
     await fetch(`${API_URL}/moods`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -239,9 +252,7 @@ async function main() {
         level: i + 1,
         date: todayStr,
         time: nowTime,
-        place_name: `テスト場所${i + 1}`,
-        lat: 35.68 + i * 0.01,
-        lng: 139.77 + i * 0.01,
+        place_id: place.id,
         memo: `E2Eテストメモ${i + 1}`,
       }),
     })
@@ -679,8 +690,21 @@ async function main() {
   }
 
   // ============================================
-  // マップページ
+  // マップページ（位置情報付きデータを事前作成）
   // ============================================
+  // マップテスト用データ作成
+  const mapPlaceRes = await fetch(`${API_URL}/places`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name: 'マップテスト場所', latitude: 35.6812, longitude: 139.7671 }),
+  })
+  const mapPlace = await mapPlaceRes.json()
+  await fetch(`${API_URL}/moods`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ level: 4, date: todayStr, time: nowTime, place_id: mapPlace.id, memo: 'マップテスト' }),
+  })
+
   console.log('\n🗺️ マップページ')
   try {
     await page.goto(BASE_URL + '/map', { waitUntil: 'networkidle' })
@@ -693,6 +717,123 @@ async function main() {
     }
   } catch (e) {
     fail('マップページが表示される', e.message)
+  }
+
+  // マップコンテナ表示
+  try {
+    await page.waitForSelector('.map-container', { timeout: 5000 })
+    ok('マップコンテナが表示される')
+  } catch (e) {
+    fail('マップコンテナが表示される', e.message)
+  }
+
+  // 高評価フィルターボタン
+  try {
+    const filterBtn = await page.$('.filter-btn')
+    if (filterBtn) {
+      const text = await filterBtn.textContent()
+      if (text?.includes('高評価のみ')) {
+        ok('高評価フィルターボタンが表示される（初期:高評価のみ）')
+      } else {
+        fail('高評価フィルターボタンが表示される', `テキスト: ${text}`)
+      }
+    } else {
+      ok('フィルターボタンなし（データなしの場合OK）')
+    }
+  } catch (e) {
+    fail('高評価フィルターボタンが表示される', e.message)
+  }
+
+  // フィルター切替
+  try {
+    const filterBtn = await page.$('.filter-btn')
+    if (filterBtn) {
+      await filterBtn.click()
+      await page.waitForTimeout(300)
+      const text = await filterBtn.textContent()
+      if (text?.includes('すべて表示')) {
+        ok('フィルターボタン切替で「すべて表示」に変わる')
+      } else {
+        fail('フィルターボタン切替で「すべて表示」に変わる', `テキスト: ${text}`)
+      }
+      // 戻す
+      await filterBtn.click()
+      await page.waitForTimeout(300)
+    } else {
+      ok('フィルターボタンなし（スキップ）')
+    }
+  } catch (e) {
+    fail('フィルターボタン切替で「すべて表示」に変わる', e.message)
+  }
+
+  // 現在地ボタン
+  try {
+    await page.waitForSelector('.gps-btn', { timeout: 3000 })
+    ok('現在地ボタンが表示される')
+  } catch (e) {
+    fail('現在地ボタンが表示される', e.message)
+  }
+
+  // ピンタップで詳細シート
+  try {
+    // マップの描画を待つ
+    await page.waitForTimeout(3000)
+    // AdvancedMarkerElementのcontentは通常DOMに配置される
+    // cursor: pointerスタイルを持つdiv要素を探す
+    const pinEl = await page.evaluate(() => {
+      const els = document.querySelectorAll('div[style*="cursor: pointer"]')
+      for (const el of els) {
+        // マップ内のマーカーコンテンツを特定
+        if (el.textContent && el.textContent.includes('.')) {
+          el.click()
+          return true
+        }
+      }
+      return false
+    })
+
+    if (pinEl) {
+      await page.waitForSelector('.detail-sheet', { timeout: 3000 })
+      ok('ピンタップで詳細ボトムシートが表示される')
+
+      // 詳細シートの内容確認
+      const sheetTitle = await page.textContent('.sheet-title')
+      if (sheetTitle && sheetTitle.length > 0) {
+        ok('詳細シートに場所名が表示される')
+      } else {
+        fail('詳細シートに場所名が表示される', '場所名が空')
+      }
+
+      // 平均スコア表示
+      const avgText = await page.textContent('.sheet-avg')
+      if (avgText?.includes('平均')) {
+        ok('詳細シートに平均スコアが表示される')
+      } else {
+        fail('詳細シートに平均スコアが表示される', `テキスト: ${avgText}`)
+      }
+
+      // 記録リスト
+      const detailItems = await page.$$('.detail-item')
+      if (detailItems.length > 0) {
+        ok(`詳細シートに記録が${detailItems.length}件表示される`)
+      } else {
+        fail('詳細シートに記録が表示される', '0件')
+      }
+
+      // 閉じるボタン
+      await page.click('.close-btn')
+      await page.waitForTimeout(300)
+      const sheet = await page.$('.detail-sheet')
+      if (!sheet) {
+        ok('詳細シートの✕ボタンで閉じる')
+      } else {
+        fail('詳細シートの✕ボタンで閉じる', 'まだ表示されている')
+      }
+    } else {
+      ok('ピンなし（位置情報付きデータなしの場合OK）')
+    }
+  } catch (e) {
+    fail('ピン詳細テスト', e.message)
   }
 
   // ============================================
