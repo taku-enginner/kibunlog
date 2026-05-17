@@ -395,15 +395,10 @@ const placeRanking = computed(() => {
     entry.count++
     map.set(m.place_name, entry)
   }
-  const all = Array.from(map.entries())
+  return Array.from(map.entries())
     .map(([name, { total, count }]) => ({ name, avg: total / count, count }))
     .sort((a, b) => b.avg - a.avg)
-  const filtered = all.filter((p) => p.count >= 20)
-  if (filtered.length > 0) return filtered.slice(0, 5)
-  // 20件以上がなければ最多記録の場所を1件
-  if (all.length === 0) return []
-  const sorted = [...all].sort((a, b) => b.count - a.count)
-  return [sorted[0]]
+    .slice(0, 5)
 })
 
 // --- ストリーク ---
