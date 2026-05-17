@@ -482,7 +482,7 @@ async function loadImage(moodId: number) {
   viewingImageUrl.value = null
   imageLoading.value = true
   try {
-    const blob = await $fetch<Blob>(`${apiBase}/moods/${moodId}/image`, {
+    const blob = await $fetch<Blob>(`${apiBase}/moods/${moodId}/image?t=${Date.now()}`, {
       headers: getHeaders(),
       responseType: 'blob',
     })
@@ -548,7 +548,7 @@ async function showDetailForMood(mood: Mood) {
   if (mood.has_image) {
     detailImageLoading.value = true
     try {
-      const blob = await $fetch<Blob>(`${apiBase}/moods/${mood.id}/image`, {
+      const blob = await $fetch<Blob>(`${apiBase}/moods/${mood.id}/image?t=${Date.now()}`, {
         headers: getHeaders(),
         responseType: 'blob',
       })

@@ -34,6 +34,15 @@
         </div>
       </div>
 
+      <!-- 今日の記録一覧 -->
+      <div v-if="todayMoods.length > 0" class="today-list">
+        <div v-for="m in todayMoodsSorted" :key="m.id" class="today-card">
+          <span class="today-card-emoji">{{ moodConfig[m.level]?.emoji }}</span>
+          <span class="today-card-time">{{ m.time || '--:--' }}</span>
+          <span class="today-card-memo">{{ m.memo || '' }}</span>
+        </div>
+      </div>
+
       <!-- 記録ボタン -->
       <button class="add-btn" @click="startAdd">＋ 記録する</button>
     </template>
@@ -114,6 +123,10 @@ const selectedPlace = ref<Place | null>(null)
 const editingMood = ref<Mood | null>(null)
 const pendingLevel = ref<number | null>(null)
 const pendingMemo = ref<string | null>(null)
+
+const todayMoodsSorted = computed(() => {
+  return [...todayMoods.value].sort((a, b) => (b.time ?? '').localeCompare(a.time ?? ''))
+})
 
 const avgScore = computed(() => {
   if (todayMoods.value.length === 0) return '0'
@@ -385,6 +398,45 @@ async function onMoodSubmit(data: { level: number; memo: string | null; image: F
   color: #6e6e73;
   margin-top: 4px;
   font-weight: 500;
+}
+
+/* 今日の記録一覧 */
+.today-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.today-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.today-card-emoji {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.today-card-time {
+  font-size: 13px;
+  color: #6e6e73;
+  flex-shrink: 0;
+  min-width: 40px;
+}
+
+.today-card-memo {
+  font-size: 13px;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 /* 記録ボタン */
