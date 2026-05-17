@@ -2,13 +2,65 @@
 
 気分を記録し、場所・時間ごとの傾向を可視化するWebアプリ。
 
-## 技術スタック
+## 技術構成
 
-- Frontend: Nuxt 3
-- Backend: Python (FastAPI)
-- DB: MySQL 8.4
-- 地図: Google Maps JavaScript API / Places API (New)
-- インフラ: Docker Compose / Caddy (HTTPS) / Tailscale
+### フロントエンド
+
+| 項目 | 技術 |
+|------|------|
+| フレームワーク | Nuxt 3 (Vue 3, Composition API) |
+| 言語 | TypeScript |
+| グラフ | Chart.js + vue-chartjs |
+| 地図 | Google Maps JavaScript API / Places API (New) |
+| テスト | Vitest + @vue/test-utils + happy-dom |
+| カバレッジ | @vitest/coverage-v8 |
+
+### バックエンド
+
+| 項目 | 技術 |
+|------|------|
+| フレームワーク | FastAPI (Python 3.12) |
+| ORM | SQLAlchemy |
+| DB | MySQL 8.4 |
+| 認証 | JWT (PyJWT + bcrypt) |
+| 画像処理 | Pillow (リサイズ・WebP変換・EXIF補正・回転) |
+| テスト | pytest + coverage.py + httpx |
+
+### インフラ・デプロイ
+
+| 項目 | 技術 |
+|------|------|
+| コンテナ | Docker Compose |
+| リバースプロキシ | Caddy (HTTPS自動証明書) |
+| ネットワーク | Tailscale (VPN経由アクセス) |
+| ローカル開発 | devbox (Python 3.12 + Node.js 22 + MySQL 8.4) |
+
+## サーバー構成
+
+### 本番 (Debian)
+
+```
+[クライアント] → Tailscale VPN → [Caddy :443]
+                                      ├─ /auth/*, /moods*, /places* → [Backend :8000]
+                                      └─ /* → [Frontend :3000]
+
+[Backend :8000] → [MySQL :3306]
+                → [/app/uploads] (画像ファイル)
+```
+
+- ドメイン: `debian.tail69d614.ts.net`
+- Tailscale経由のみアクセス可（インターネット非公開）
+- Caddy: TLS証明書はTailscaleが発行したものを使用
+- データ永続化: Docker volumes (db_data, uploads_data, caddy_data)
+
+### ローカル開発 (Mac)
+
+```
+[ブラウザ] → [Frontend :23000] → [Backend :28000] → [MySQL :23306]
+```
+
+- devbox環境: `frontend :3001`, `backend :18000`, `MySQL :13306`
+- Docker環境: `frontend :23000`, `backend :28000`, `MySQL :23306`
 
 ## 画面構成
 
@@ -121,7 +173,7 @@ devbox環境（フロント3001、バックエンド18000）で実行。
 
 ### カバレッジ状況
 
-| 対象 | Stmts | Branch | 備考 |
-|------|-------|--------|------|
-| バックエンド | 68% | - | auth 91%, models 100%, main 69% |
-| フロントエンド | 15.7% | 9.1% | composables 49%, コンポーネント未着手 |
+| 対象 | Stmts | テスト数 | 備考 |
+|------|-------|---------|------|
+| バックエンド | 95% | 56 | auth 91%, models 100%, main 99%, image_utils 95% |
+| フロントエンド (composables) | 100% | 46 | Branch 85% (SSR分岐のみ未到達) |
