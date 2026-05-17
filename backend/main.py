@@ -15,7 +15,7 @@ from auth import (
     verify_password,
 )
 from database import Base, engine, get_db
-from image_utils import UPLOAD_BASE, delete_image_files, process_upload
+from image_utils import UPLOAD_BASE, delete_image_files, process_upload, rotate_image
 from models import HeatmapEvent, Mood, Place, User
 
 Base.metadata.create_all(bind=engine)
@@ -282,6 +282,19 @@ def delete_mood_image(
     delete_image_files(user.id, mood.image_path)
     mood.image_path = None
     db.commit()
+
+
+@app.post("/moods/{mood_id}/image/rotate", status_code=200)
+def rotate_mood_image(
+    mood_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    mood = db.query(Mood).filter(Mood.id == mood_id, Mood.user_id == user.id).first()
+    if not mood or not mood.image_path:
+        raise HTTPException(status_code=404, detail="Image not found")
+    rotate_image(user.id, mood.image_path)
+    return {"status": "ok"}
 
 
 @app.put("/moods/{mood_id}", response_model=MoodOut)

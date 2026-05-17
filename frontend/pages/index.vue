@@ -52,6 +52,8 @@
         :place-name="selectedPlace?.name"
         :initial-level="pendingLevel ?? editingMood?.level"
         :initial-memo="pendingMemo ?? editingMood?.memo"
+        :initial-has-image="editingMood?.has_image"
+        :mood-id="editingMood?.id"
         :saving="saving"
         @submit="onMoodSubmit"
         @close="cancelForm"
@@ -246,22 +248,26 @@ async function onMoodSubmit(data: { level: number; memo: string | null; image: F
       todayMoods.value.push(created)
     }
 
-    // Upload image if selected
+    showToast(isEdit ? '更新しました' : '記録しました')
+    cancelForm()
+
+    // Upload image async (after form closes)
     if (data.image && moodId) {
+      const imageId = moodId
       const formData = new FormData()
       formData.append('file', data.image)
-      await $fetch(`${apiBase}/moods/${moodId}/image`, {
+      $fetch(`${apiBase}/moods/${imageId}/image`, {
         method: 'POST',
         body: formData,
         headers: getHeaders(),
+      }).then(() => {
+        const idx = todayMoods.value.findIndex((m) => m.id === imageId)
+        if (idx >= 0) todayMoods.value[idx] = { ...todayMoods.value[idx], has_image: true }
+        showToast('画像を保存しました')
+      }).catch(() => {
+        showToast('画像の保存に失敗しました', 'error')
       })
-      // Update local state
-      const idx = todayMoods.value.findIndex((m) => m.id === moodId)
-      if (idx >= 0) todayMoods.value[idx] = { ...todayMoods.value[idx], has_image: true }
     }
-
-    showToast(isEdit ? '更新しました' : '記録しました')
-    cancelForm()
   } catch {
     showToast('保存に失敗しました', 'error')
   }

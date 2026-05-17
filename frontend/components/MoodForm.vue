@@ -40,6 +40,7 @@
         </button>
         <div v-else class="image-preview-wrap">
           <img :src="imagePreview" class="image-preview" />
+          <button v-if="existingImage" class="image-rotate-btn" :disabled="rotating" @click="rotateImage">↻</button>
           <button class="image-remove-btn" @click="removeImage">✕</button>
         </div>
         <input
@@ -67,6 +68,8 @@ const props = defineProps<{
   placeName?: string
   initialLevel?: number | null
   initialMemo?: string | null
+  initialHasImage?: boolean
+  moodId?: number | null
   saving: boolean
 }>()
 
@@ -92,11 +95,28 @@ const moodOptions = [
   { level: 1, ...moodConfig[1] },
 ]
 
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase
+const { getHeaders } = useAuth()
+
 const selectedLevel = ref<number | null>(props.initialLevel ?? null)
 const memo = ref(props.initialMemo ?? '')
 const selectedImage = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
+const existingImage = ref(false)
+const rotating = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+
+// Load existing thumbnail if editing a mood with image
+if (props.initialHasImage && props.moodId) {
+  existingImage.value = true
+  $fetch(`${apiBase}/moods/${props.moodId}/image/thumb`, {
+    headers: getHeaders(),
+    responseType: 'blob',
+  }).then((blob: Blob) => {
+    imagePreview.value = URL.createObjectURL(blob)
+  }).catch(() => {})
+}
 
 function triggerFileInput() {
   fileInput.value?.click()
@@ -116,7 +136,29 @@ function removeImage() {
   }
   selectedImage.value = null
   imagePreview.value = null
+  existingImage.value = false
   if (fileInput.value) fileInput.value.value = ''
+}
+
+async function rotateImage() {
+  if (!props.moodId || rotating.value) return
+  rotating.value = true
+  try {
+    await $fetch(`${apiBase}/moods/${props.moodId}/image/rotate`, {
+      method: 'POST',
+      headers: getHeaders(),
+    })
+    // Reload thumbnail
+    if (imagePreview.value) {
+      URL.revokeObjectURL(imagePreview.value)
+    }
+    const blob = await $fetch<Blob>(`${apiBase}/moods/${props.moodId}/image/thumb`, {
+      headers: getHeaders(),
+      responseType: 'blob',
+    })
+    imagePreview.value = URL.createObjectURL(blob)
+  } catch {}
+  rotating.value = false
 }
 
 function submit() {
@@ -280,6 +322,28 @@ function submit() {
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+.image-rotate-btn {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.image-rotate-btn:disabled {
+  opacity: 0.4;
 }
 
 .save-btn {

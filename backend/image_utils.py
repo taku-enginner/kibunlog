@@ -2,7 +2,7 @@ import io
 import re
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 UPLOAD_BASE = Path("/app/uploads")
 
@@ -46,6 +46,7 @@ def process_upload(file_bytes: bytes, user_id: int, mood) -> str:
     Returns the generated filename.
     """
     img = Image.open(io.BytesIO(file_bytes))
+    img = ImageOps.exif_transpose(img)
     img = img.convert("RGB")
 
     # Build filename
@@ -74,6 +75,24 @@ def process_upload(file_bytes: bytes, user_id: int, mood) -> str:
     (thumb_dir / filename).write_bytes(thumb_bytes)
 
     return filename
+
+
+def rotate_image(user_id: int, filename: str) -> None:
+    """Rotate original and thumbnail 90 degrees clockwise, overwrite files."""
+    original_path = UPLOAD_BASE / str(user_id) / "original" / filename
+    thumb_path = UPLOAD_BASE / str(user_id) / "thumb" / filename
+
+    if original_path.exists():
+        img = Image.open(original_path)
+        rotated = img.rotate(-90, expand=True)
+        original_bytes = _resize_to_webp(rotated, 1200, 200 * 1024)
+        original_path.write_bytes(original_bytes)
+
+    if thumb_path.exists():
+        img = Image.open(thumb_path)
+        rotated = img.rotate(-90, expand=True)
+        thumb_bytes = _resize_to_webp(rotated, 100, 10 * 1024)
+        thumb_path.write_bytes(thumb_bytes)
 
 
 def delete_image_files(user_id: int, filename: str) -> None:
