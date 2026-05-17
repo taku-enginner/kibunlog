@@ -125,7 +125,7 @@ const moodMap = computed(() => {
   }
   const map: Record<string, number | null> = {}
   for (const [date, s] of Object.entries(sums)) {
-    map[date] = Math.round(s.total / s.count)
+    map[date] = s.total / s.count
   }
   return map
 })
@@ -260,12 +260,12 @@ const chartData = computed<ChartData<'line'>>(() => {
         pointRadius: pointSize.value,
         pointBackgroundColor: dates.map((d) => {
           const level = map[d]
-          if (level === 5) return '#1b5e20'
-          if (level === 4) return '#28a745'
-          if (level === 3) return '#ffc107'
-          if (level === 2) return '#dc3545'
-          if (level === 1) return '#491217'
-          return '#ccc'
+          if (level == null) return '#ccc'
+          if (level >= 4.5) return '#1b5e20'
+          if (level >= 3.5) return '#28a745'
+          if (level >= 2.5) return '#ffc107'
+          if (level >= 1.5) return '#dc3545'
+          return '#491217'
         }),
         pointBorderColor: '#fff',
         pointBorderWidth: pointSize.value > 0 ? 2 : 0,
@@ -297,12 +297,10 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
         label: (ctx: any) => {
           if (ctx.datasetIndex === 1) return ''
           const level = ctx.parsed.y
-          if (level === 5) return '最高'
-          if (level === 4) return '良い'
-          if (level === 3) return '普通'
-          if (level === 2) return 'いまいち'
-          if (level === 1) return 'しんどい'
-          return ''
+          const rounded = Math.round(level)
+          const labels: Record<number, string> = { 5: '最高', 4: '良い', 3: '普通', 2: 'いまいち', 1: 'しんどい' }
+          const label = labels[rounded] ?? ''
+          return Number.isInteger(level) ? label : `${level.toFixed(1)} (${label})`
         },
       },
       filter: (item: any) => item.datasetIndex === 0,
