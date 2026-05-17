@@ -255,6 +255,7 @@ interface Place {
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
+const { show: showToast } = useToast()
 const { getDayName, getDateColor, formatWithDay, toLocalDateStr } = useDate()
 
 const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
@@ -405,8 +406,11 @@ async function onMoodSubmit(data: { level: number; memo: string | null; image: F
         if (moodIdx >= 0) allMoods.value[moodIdx] = { ...allMoods.value[moodIdx], has_image: true }
       }
     }
+    showToast('更新しました')
     cancelForm()
-  } catch {}
+  } catch {
+    showToast('保存に失敗しました', 'error')
+  }
   saving.value = false
 }
 
@@ -422,7 +426,10 @@ async function deleteMood(id: number) {
       headers: getHeaders(),
     })
     allMoods.value = allMoods.value.filter((m) => m.id !== id)
-  } catch {}
+    showToast('削除しました')
+  } catch {
+    showToast('削除に失敗しました', 'error')
+  }
 }
 
 // --- Image viewer ---

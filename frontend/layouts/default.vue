@@ -1,5 +1,6 @@
 <template>
   <div class="app-container">
+    <ToastMessage />
     <main class="main-content">
       <slot />
     </main>
@@ -16,11 +17,7 @@
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
         <span class="nav-label">履歴</span>
       </NuxtLink>
-      <NuxtLink to="/map" class="nav-item" :class="{ active: route.path === '/map' }">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-        <span class="nav-label">マップ</span>
-      </NuxtLink>
-      <NuxtLink to="/insights" class="nav-item" :class="{ active: route.path === '/insights' }">
+<NuxtLink to="/insights" class="nav-item" :class="{ active: route.path === '/insights' }">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         <span class="nav-label">+α</span>
       </NuxtLink>

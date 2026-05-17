@@ -1,0 +1,14 @@
+const toasts = ref<{ id: number; message: string; type: 'success' | 'error' }[]>([])
+let nextId = 0
+
+export function useToast() {
+  function show(message: string, type: 'success' | 'error' = 'success', duration = 2000) {
+    const id = nextId++
+    toasts.value.push({ id, message, type })
+    setTimeout(() => {
+      toasts.value = toasts.value.filter((t) => t.id !== id)
+    }, duration)
+  }
+
+  return { toasts, show }
+}

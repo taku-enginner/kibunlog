@@ -100,6 +100,7 @@ const emit = defineEmits<{
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
+const { show: showToast } = useToast()
 const { load: loadGoogleMaps } = useGoogleMaps()
 const { searching, results: searchResults, search, clear } = useGooglePlaces()
 
@@ -261,7 +262,10 @@ async function deletePlace(placeId: number) {
       headers: getHeaders(),
     })
     places.value = places.value.filter((p) => p.id !== placeId)
-  } catch {}
+    showToast('場所を削除しました')
+  } catch {
+    showToast('削除に失敗しました', 'error')
+  }
 }
 
 function useCurrentLocation() {

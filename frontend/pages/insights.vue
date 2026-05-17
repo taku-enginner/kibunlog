@@ -33,6 +33,14 @@
         </div>
       </section>
 
+      <!-- マップ -->
+      <section class="section">
+        <NuxtLink to="/map" class="map-link-btn">
+          <svg class="map-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+          マップで見る
+        </NuxtLink>
+      </section>
+
       <!-- 曜日別平均 -->
       <section class="section">
         <h2 class="section-title">曜日別の気分</h2>
@@ -387,10 +395,15 @@ const placeRanking = computed(() => {
     entry.count++
     map.set(m.place_name, entry)
   }
-  return Array.from(map.entries())
+  const all = Array.from(map.entries())
     .map(([name, { total, count }]) => ({ name, avg: total / count, count }))
     .sort((a, b) => b.avg - a.avg)
-    .slice(0, 5)
+  const filtered = all.filter((p) => p.count >= 20)
+  if (filtered.length > 0) return filtered.slice(0, 5)
+  // 20件以上がなければ最多記録の場所を1件
+  if (all.length === 0) return []
+  const sorted = [...all].sort((a, b) => b.count - a.count)
+  return [sorted[0]]
 })
 
 // --- ストリーク ---
@@ -514,15 +527,16 @@ const placeDayMatrix = computed(() => {
       entry[dow].count++
     }
   }
-  // Top 5 places by total count
-  const places = Array.from(map.entries())
+  const all = Array.from(map.entries())
     .map(([place, rec]) => ({
       place,
       totalCount: dayOrderIndices.reduce((s, dow) => s + rec[dow].count, 0),
       rec,
     }))
     .sort((a, b) => b.totalCount - a.totalCount)
-    .slice(0, 5)
+  // 20件以上の場所のみ、なければ最多1件
+  const filtered = all.filter((p) => p.totalCount >= 20)
+  const places = filtered.length > 0 ? filtered.slice(0, 5) : all.length > 0 ? [all[0]] : []
 
   return places.map(({ place, rec }) => ({
     place,
@@ -773,6 +787,33 @@ function drawHeatmap(events: Array<{ x_pct: number; y_pct: number }>) {
   font-weight: 700;
   color: #6e6e73;
   margin-bottom: 12px;
+}
+
+/* マップリンク */
+.map-link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: #f0f4ff;
+  border: 1px solid #d0d8f0;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #007aff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.map-link-btn:active {
+  background: #dce4f8;
+}
+
+.map-link-icon {
+  width: 20px;
+  height: 20px;
 }
 
 /* 週次サマリー */

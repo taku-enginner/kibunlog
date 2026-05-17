@@ -83,6 +83,7 @@ interface Place {
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
+const { show: showToast } = useToast()
 const { formatWithDay, getDateColor, toLocalDateStr } = useDate()
 
 const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
@@ -209,6 +210,7 @@ function onChangePlace(data: { level: number | null; memo: string | null }) {
 
 async function onMoodSubmit(data: { level: number; memo: string | null; image: File | null }) {
   saving.value = true
+  const isEdit = !!editingMood.value
   try {
     let moodId: number | null = null
     if (editingMood.value) {
@@ -258,8 +260,11 @@ async function onMoodSubmit(data: { level: number; memo: string | null; image: F
       if (idx >= 0) todayMoods.value[idx] = { ...todayMoods.value[idx], has_image: true }
     }
 
+    showToast(isEdit ? '更新しました' : '記録しました')
     cancelForm()
-  } catch {}
+  } catch {
+    showToast('保存に失敗しました', 'error')
+  }
   saving.value = false
 }
 </script>

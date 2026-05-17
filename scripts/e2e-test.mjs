@@ -958,10 +958,10 @@ async function main() {
   console.log('\n🧭 ナビゲーション')
   try {
     const navItems = await page.$$('.nav-item')
-    if (navItems.length === 5) {
-      ok('ナビバーに5つのタブがある')
+    if (navItems.length === 4) {
+      ok('ナビバーに4つのタブがある')
     } else {
-      fail('ナビバーに5つのタブがある', `タブ数: ${navItems.length}`)
+      fail('ナビバーに4つのタブがある', `タブ数: ${navItems.length}`)
     }
   } catch (e) {
     fail('ナビバーに4つのタブがある', e.message)
@@ -972,8 +972,7 @@ async function main() {
     { index: 0, path: '/', label: '記録' },
     { index: 1, path: '/graph', label: 'グラフ' },
     { index: 2, path: '/timeline', label: '履歴' },
-    { index: 3, path: '/map', label: 'マップ' },
-    { index: 4, path: '/insights', label: '+α' },
+    { index: 3, path: '/insights', label: '+α' },
   ]
 
   for (const target of navTargets) {
