@@ -943,13 +943,13 @@ async function main() {
 
   try {
     const timeBars = await page.$$('.time-col')
-    if (timeBars.length === 5) {
-      ok('時間帯別バーが5本表示される')
+    if (timeBars.length === 4) {
+      ok('時間帯別バーが4本表示される')
     } else {
-      fail('時間帯別バーが5本表示される', `バー数: ${timeBars.length}`)
+      fail('時間帯別バーが4本表示される', `バー数: ${timeBars.length}`)
     }
   } catch (e) {
-    fail('時間帯別バーが5本表示される', e.message)
+    fail('時間帯別バーが4本表示される', e.message)
   }
 
   // ============================================

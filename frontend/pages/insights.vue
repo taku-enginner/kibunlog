@@ -383,8 +383,7 @@ const timeSlotStats = computed(() => {
     { label: '朝', from: 5, to: 10 },
     { label: '昼', from: 10, to: 14 },
     { label: '夕', from: 14, to: 18 },
-    { label: '夜', from: 18, to: 24 },
-    { label: '深夜', from: 0, to: 5 },
+    { label: '夜', from: 18, to: 5 },
   ]
   return slots.map((slot) => {
     const items = moods.value.filter((m) => {
@@ -461,13 +460,12 @@ const missedDays = computed(() => {
 })
 
 // --- 曜日×時間帯クロス分析 ---
-const timeSlotLabels = ['朝', '昼', '夕', '夜', '深夜']
+const timeSlotLabels = ['朝', '昼', '夕', '夜']
 const timeSlotDefs = [
   { from: 5, to: 10 },
   { from: 10, to: 14 },
   { from: 14, to: 18 },
-  { from: 18, to: 24 },
-  { from: 0, to: 5 },
+  { from: 18, to: 5 },
 ]
 const dayNamesOrdered = ['月', '火', '水', '木', '金', '土', '日']
 const dayOrderIndices = [1, 2, 3, 4, 5, 6, 0] // JS getDay() indices
@@ -478,8 +476,7 @@ function getTimeSlotIndex(time: string | null | undefined): number {
   if (h >= 5 && h < 10) return 0
   if (h >= 10 && h < 14) return 1
   if (h >= 14 && h < 18) return 2
-  if (h >= 18 && h < 24) return 3
-  return 4 // 0-4
+  return 3 // 18-5
 }
 
 function heatmapBg(avg: number): string {
