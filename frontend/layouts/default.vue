@@ -29,8 +29,6 @@
 const route = useRoute()
 const { isLoggedIn } = useAuth()
 
-// Track touch/click heatmap on all pages
-useHeatmap()
 </script>
 
 <style>
