@@ -81,6 +81,12 @@
         </button>
       </div>
 
+      <!-- 日付フィルター -->
+      <div v-if="filterDate" class="date-filter-bar">
+        <span class="date-filter-label">{{ formatDate(filterDate) }} の記録を表示中</span>
+        <button class="date-filter-clear" @click="clearDateFilter">✕</button>
+      </div>
+
       <!-- 画像DLボタン -->
       <div v-if="hasAnyImage && !downloadMode" class="download-start-row">
         <button class="download-start-btn" @click="enterDownloadMode">画像DL</button>
@@ -279,11 +285,13 @@ const todayStr = toLocalDateStr(today)
 const todayLabel = formatWithDay(today)
 const todayColor = getDateColor(today)
 
+const route = useRoute()
 const activeTab = ref<'today' | 'history'>('today')
 const allMoods = ref<Mood[]>([])
 const loading = ref(true)
 const saving = ref(false)
 const filterLevel = ref<number | null>(null)
+const filterDate = ref<string | null>(null)
 const deleteMode = ref(false)
 
 // Image viewer state
@@ -327,11 +335,22 @@ const historyMoods = computed(() =>
 )
 
 const filteredMoods = computed(() => {
-  if (filterLevel.value === null) return historyMoods.value
-  return historyMoods.value.filter((m) => m.level === filterLevel.value)
+  let result = historyMoods.value
+  if (filterDate.value) {
+    result = result.filter((m) => m.date === filterDate.value)
+  }
+  if (filterLevel.value !== null) {
+    result = result.filter((m) => m.level === filterLevel.value)
+  }
+  return result
 })
 
 onMounted(async () => {
+  // クエリパラメータで日付指定がある場合、履歴タブ＋日付フィルター
+  if (route.query.date) {
+    activeTab.value = 'history'
+    filterDate.value = route.query.date as string
+  }
   try {
     const result = await $fetch<Mood[]>(`${apiBase}/moods`, {
       headers: getHeaders(),
@@ -412,6 +431,10 @@ async function onMoodSubmit(data: { level: number; memo: string | null; image: F
     showToast('保存に失敗しました', 'error')
   }
   saving.value = false
+}
+
+function clearDateFilter() {
+  filterDate.value = null
 }
 
 function toggleDeleteMode() {
@@ -759,6 +782,31 @@ function formatDate(dateStr: string): string {
 }
 
 /* 履歴タブ */
+.date-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #e3f2fd;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.date-filter-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1565c0;
+}
+
+.date-filter-clear {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #1565c0;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
 .filter-row {
   display: flex;
   gap: 8px;

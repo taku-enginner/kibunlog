@@ -79,7 +79,7 @@
       <section v-if="placeRanking.length > 0" class="section">
         <h2 class="section-title">気分が良い場所 TOP5</h2>
         <div class="ranking">
-          <div v-for="(p, i) in placeRanking" :key="p.name" class="ranking-item">
+          <div v-for="(p, i) in placeRanking" :key="p.name" class="ranking-item" @click="openPlaceHistory(p.name)">
             <span class="ranking-num">{{ i + 1 }}</span>
             <span class="ranking-name">{{ p.name }}</span>
             <span class="ranking-score" :style="{ color: scoreColor(p.avg) }">{{ p.avg.toFixed(1) }}</span>
@@ -236,6 +236,40 @@
     <div class="logout-area">
       <button class="logout-link" @click="handleLogout">ログアウト</button>
     </div>
+
+    <!-- 場所別履歴モーダル -->
+    <Teleport to="body">
+      <div
+        v-if="placeHistoryName"
+        class="place-history-overlay"
+        @click.self="closePlaceHistory"
+      >
+        <div class="place-history-modal">
+          <div class="place-history-header">
+            <button class="place-history-close" @click="closePlaceHistory">✕</button>
+            <span class="place-history-title">「{{ placeHistoryName }}」の記録 ({{ placeHistoryMoods.length }}件)</span>
+          </div>
+          <div class="place-history-body">
+            <div
+              v-for="m in placeHistoryMoods"
+              :key="m.id"
+              class="place-history-item"
+            >
+              <div class="place-history-item-header">
+                <span class="place-history-date">{{ formatMoodDate(m.date) }}<span v-if="m.time"> {{ m.time }}</span></span>
+                <span class="place-history-level" :style="{ color: scoreColor(m.level) }">
+                  {{ moodEmoji(m.level) }} {{ moodLabel(m.level) }}
+                </span>
+              </div>
+              <p v-if="m.memo" class="place-history-memo">{{ m.memo }}</p>
+              <p v-else class="place-history-memo place-history-no-memo">メモなし</p>
+              <button class="place-history-day-btn" @click="goToDayTimeline(m.date)">その日の履歴を見る</button>
+            </div>
+            <p v-if="placeHistoryMoods.length === 0" class="place-history-empty">記録がありません</p>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -630,6 +664,43 @@ const lowScoreStreaks = computed(() => {
   return streaks
 })
 
+// --- 場所別履歴モーダル ---
+const placeHistoryName = ref<string | null>(null)
+
+const placeHistoryMoods = computed(() => {
+  if (!placeHistoryName.value) return []
+  return moods.value
+    .filter((m) => m.place_name === placeHistoryName.value)
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? '').localeCompare(a.time ?? ''))
+})
+
+function openPlaceHistory(name: string) {
+  placeHistoryName.value = name
+}
+
+function closePlaceHistory() {
+  placeHistoryName.value = null
+}
+
+function formatMoodDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getMonth() + 1}/${d.getDate()}(${dayNames[d.getDay()]})`
+}
+
+function moodEmoji(level: number): string {
+  const emojis: Record<number, string> = { 5: '😆', 4: '😊', 3: '😐', 2: '😣', 1: '😵' }
+  return emojis[level] ?? ''
+}
+
+function moodLabel(level: number): string {
+  const labels: Record<number, string> = { 5: '最高', 4: '良い', 3: '普通', 2: 'いまいち', 1: 'しんどい' }
+  return labels[level] ?? ''
+}
+
+function goToDayTimeline(dateStr: string) {
+  closePlaceHistory()
+  router.push({ path: '/timeline', query: { date: dateStr } })
+}
 </script>
 
 <style scoped>
@@ -1105,4 +1176,127 @@ const lowScoreStreaks = computed(() => {
   min-height: 44px;
 }
 
+/* 場所別履歴モーダル */
+.place-history-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.place-history-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.place-history-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.place-history-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.place-history-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+}
+
+.place-history-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+
+.place-history-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.place-history-item:last-child {
+  border-bottom: none;
+}
+
+.place-history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.place-history-date {
+  font-size: 13px;
+  color: #666;
+  font-weight: 600;
+}
+
+.place-history-level {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.place-history-memo {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  white-space: pre-wrap;
+  margin: 4px 0 8px;
+}
+
+.place-history-no-memo {
+  color: #ccc;
+  font-style: italic;
+}
+
+.place-history-day-btn {
+  background: none;
+  border: 1px solid #007aff;
+  border-radius: 6px;
+  color: #007aff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.place-history-day-btn:active {
+  background: #007aff;
+  color: #fff;
+}
+
+.place-history-empty {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  padding: 40px 0;
+}
+
+.ranking-item {
+  cursor: pointer;
+}
+
+.ranking-item:active {
+  background: #f0f0f5;
+}
 </style>
