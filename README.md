@@ -12,11 +12,10 @@
 
 ## 画面構成
 
-1. **記録 (/)** - 今日の平均スコア + 7日ミニグラフ + 記録ボタン
-2. **グラフ (/graph)** - 気分推移の折れ線グラフ（2週間〜3年）
-3. **履歴 (/timeline)** - 「今日」タブ（カード一覧・編集・削除）と「履歴」タブ（全記録・フィルター）
-4. **マップ (/map)** - 場所ごとにピン集約（色=平均気分、サイズ=記録数）+ 高評価フィルター
-5. **プラスα (/insights)** - 週次サマリー・曜日別・時間帯別・クロス分析・ストリーク・UIヒートマップ
+1. **記録 (/)** - 今日の平均スコア + 7日ミニグラフ + 今日の記録一覧 + 記録ボタン
+2. **グラフ (/graph)** - 気分推移の折れ線グラフ（2週間〜3年、小数平均でプロット）
+3. **履歴 (/timeline)** - 「今日」タブ（カード一覧・詳細・編集・削除）と「履歴」タブ（全記録・フィルター・日付フィルター）
+4. **プラスα (/insights)** - 週次サマリー・曜日別・時間帯別・場所TOP5（ドリルダウン）・場所×曜日クロス分析・ストリーク・マップ
 
 ## 画像・通信量の方針
 
@@ -90,10 +89,39 @@ Caddy経由でHTTPSアクセス。
 docker compose -f docker-compose.<mac|debian>.yml down
 ```
 
-## E2Eテスト
+## テスト
+
+### バックエンド単体テスト（pytest + coverage.py）
+
+```bash
+cd backend
+../.venv/bin/pytest --cov=. --cov-report=term-missing
+```
+
+- SQLite in-memory使用（本番DBに接続しない）
+- 認証・気分CRUD・場所CRUDをカバー
+
+### フロントエンド単体テスト（Vitest + @vitest/coverage-v8）
+
+```bash
+cd frontend
+npx vitest run --coverage
+```
+
+- composables（useToast, useDate, useAuth）のユニットテスト
+- コンポーネントテスト（ToastMessage）
+
+### E2Eテスト（Playwright）
 
 ```bash
 BASE_URL=http://localhost:3001 API_URL=http://localhost:18000 node scripts/e2e-test.mjs
 ```
 
 devbox環境（フロント3001、バックエンド18000）で実行。
+
+### カバレッジ状況
+
+| 対象 | Stmts | Branch | 備考 |
+|------|-------|--------|------|
+| バックエンド | 68% | - | auth 91%, models 100%, main 69% |
+| フロントエンド | 15.7% | 9.1% | composables 49%, コンポーネント未着手 |

@@ -8,3 +8,8 @@ pyjwt
 bcrypt
 Pillow
 python-multipart
+
+# Testing
+pytest
+pytest-cov
+httpx
