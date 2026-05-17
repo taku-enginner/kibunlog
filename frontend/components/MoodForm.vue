@@ -110,7 +110,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 // Load existing thumbnail if editing a mood with image
 if (props.initialHasImage && props.moodId) {
   existingImage.value = true
-  $fetch(`${apiBase}/moods/${props.moodId}/image/thumb`, {
+  $fetch(`${apiBase}/moods/${props.moodId}/image/thumb?t=${Date.now()}`, {
     headers: getHeaders(),
     responseType: 'blob',
   }).then((blob: Blob) => {
@@ -148,16 +148,19 @@ async function rotateImage() {
       method: 'POST',
       headers: getHeaders(),
     })
-    // Reload thumbnail
+    // Reload thumbnail with cache buster
     if (imagePreview.value) {
       URL.revokeObjectURL(imagePreview.value)
     }
-    const blob = await $fetch<Blob>(`${apiBase}/moods/${props.moodId}/image/thumb`, {
+    const blob = await $fetch<Blob>(`${apiBase}/moods/${props.moodId}/image/thumb?t=${Date.now()}`, {
       headers: getHeaders(),
       responseType: 'blob',
     })
     imagePreview.value = URL.createObjectURL(blob)
-  } catch {}
+  } catch {
+    const { show } = useToast()
+    show('回転に失敗しました', 'error')
+  }
   rotating.value = false
 }
 
