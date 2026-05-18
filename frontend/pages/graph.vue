@@ -50,6 +50,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 
 interface Mood {
   date: string
+  time: string | null
   level: number
 }
 
@@ -71,6 +72,7 @@ const { getHeaders } = useAuth()
 const { getDayName, getDateColor, toLocalDateStr } = useDate()
 
 const rangeOptions: RangeOption[] = [
+  { key: '2d', label: '2日間', days: 2 },
   { key: '2w', label: '2週間', days: 14 },
   { key: '1m', label: '1ヶ月', days: 30 },
   { key: '6m', label: '半年', days: 183 },
@@ -116,6 +118,8 @@ function selectRange(key: string) {
 
 onMounted(() => fetchMoods())
 
+const is2dMode = computed(() => selectedRange.value === '2d')
+
 const moodMap = computed(() => {
   const sums: Record<string, { total: number; count: number }> = {}
   for (const m of moods.value) {
@@ -141,6 +145,17 @@ const allDates = computed(() => {
     d.setDate(d.getDate() + 1)
   }
   return dates
+})
+
+// 2日間モード: 個別エントリを時刻順にプロット
+const sortedMoods2d = computed(() => {
+  if (!is2dMode.value) return []
+  return [...moods.value]
+    .map((m) => ({
+      ...m,
+      sortKey: `${m.date} ${m.time ?? '00:00'}`,
+    }))
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
 })
 
 const warningRanges = computed<WarningRange[]>(() => {
@@ -202,6 +217,13 @@ function formatTickLabel(dateStr: string): string {
   return `${d.getFullYear()}/${d.getMonth() + 1}`
 }
 
+function format2dLabel(date: string, time: string | null): string {
+  const d = new Date(date + 'T00:00:00')
+  const day = getDayName(d)
+  const timeStr = time ?? ''
+  return `${d.getMonth() + 1}/${d.getDate()}(${day}) ${timeStr}`
+}
+
 const warningBackgroundColors = computed(() => {
   const dates = allDates.value
   const map = moodMap.value
@@ -243,7 +265,39 @@ const pointSize = computed(() => {
   return 0
 })
 
+function levelColor(level: number | null): string {
+  if (level == null) return '#ccc'
+  if (level >= 4.5) return '#1b5e20'
+  if (level >= 3.5) return '#28a745'
+  if (level >= 2.5) return '#ffc107'
+  if (level >= 1.5) return '#dc3545'
+  return '#491217'
+}
+
 const chartData = computed<ChartData<'line'>>(() => {
+  // 2日間モード: 個別エントリを時刻付きでプロット
+  if (is2dMode.value) {
+    const entries = sortedMoods2d.value
+    return {
+      labels: entries.map((m) => format2dLabel(m.date, m.time)),
+      datasets: [
+        {
+          label: '気分',
+          data: entries.map((m) => m.level),
+          borderColor: '#007aff',
+          backgroundColor: '#007aff22',
+          tension: 0.3,
+          pointRadius: 5,
+          pointBackgroundColor: entries.map((m) => levelColor(m.level)),
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          spanGaps: true,
+          fill: false,
+        },
+      ],
+    }
+  }
+
   const dates = allDates.value
   const map = moodMap.value
   const warnings = warningBackgroundColors.value
@@ -258,15 +312,7 @@ const chartData = computed<ChartData<'line'>>(() => {
         backgroundColor: '#007aff22',
         tension: 0.3,
         pointRadius: pointSize.value,
-        pointBackgroundColor: dates.map((d) => {
-          const level = map[d]
-          if (level == null) return '#ccc'
-          if (level >= 4.5) return '#1b5e20'
-          if (level >= 3.5) return '#28a745'
-          if (level >= 2.5) return '#ffc107'
-          if (level >= 1.5) return '#dc3545'
-          return '#491217'
-        }),
+        pointBackgroundColor: dates.map((d) => levelColor(map[d])),
         pointBorderColor: '#fff',
         pointBorderWidth: pointSize.value > 0 ? 2 : 0,
         spanGaps: true,
@@ -336,9 +382,15 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
       ticks: {
         maxRotation: 45,
         font: { size: 10 },
-        autoSkip: true,
-        maxTicksLimit: Math.ceil(currentDays.value / tickStepSize.value),
+        autoSkip: !is2dMode.value,
+        ...(is2dMode.value ? {} : { maxTicksLimit: Math.ceil(currentDays.value / tickStepSize.value) }),
         color: (ctx: any) => {
+          if (is2dMode.value) {
+            const entry = sortedMoods2d.value[ctx.index]
+            if (!entry) return '#6e6e73'
+            const d = new Date(entry.date + 'T00:00:00')
+            return getDateColor(d)
+          }
           const dateStr = allDates.value[ctx.index]
           if (!dateStr) return '#6e6e73'
           const d = new Date(dateStr + 'T00:00:00')
