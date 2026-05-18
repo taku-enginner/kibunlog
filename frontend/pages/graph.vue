@@ -38,6 +38,7 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
+  TimeScale,
   PointElement,
   LineElement,
   Title,
@@ -45,8 +46,9 @@ import {
   Filler,
 } from 'chart.js'
 import type { ChartData, ChartOptions } from 'chart.js'
+import 'chartjs-adapter-date-fns'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler)
+ChartJS.register(CategoryScale, LinearScale, TimeScale, PointElement, LineElement, Title, Tooltip, Filler)
 
 interface Mood {
   date: string
@@ -275,15 +277,17 @@ function levelColor(level: number | null): string {
 }
 
 const chartData = computed<ChartData<'line'>>(() => {
-  // 2日間モード: 個別エントリを時刻付きでプロット
+  // 2日間モード: 個別エントリを時刻ベースの軸でプロット
   if (is2dMode.value) {
     const entries = sortedMoods2d.value
     return {
-      labels: entries.map((m) => format2dLabel(m.date, m.time)),
       datasets: [
         {
           label: '気分',
-          data: entries.map((m) => m.level),
+          data: entries.map((m) => ({
+            x: new Date(`${m.date}T${m.time ?? '00:00'}:00`).getTime(),
+            y: m.level,
+          })),
           borderColor: '#007aff',
           backgroundColor: '#007aff22',
           tension: 0.3,
@@ -295,7 +299,7 @@ const chartData = computed<ChartData<'line'>>(() => {
           fill: false,
         },
       ],
-    }
+    } as any
   }
 
   const dates = allDates.value
@@ -378,29 +382,38 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
         color: '#e0e0e0',
       },
     },
-    x: {
-      ticks: {
-        maxRotation: 45,
-        font: { size: 10 },
-        autoSkip: !is2dMode.value,
-        ...(is2dMode.value ? {} : { maxTicksLimit: Math.ceil(currentDays.value / tickStepSize.value) }),
-        color: (ctx: any) => {
-          if (is2dMode.value) {
-            const entry = sortedMoods2d.value[ctx.index]
-            if (!entry) return '#6e6e73'
-            const d = new Date(entry.date + 'T00:00:00')
-            return getDateColor(d)
-          }
-          const dateStr = allDates.value[ctx.index]
-          if (!dateStr) return '#6e6e73'
-          const d = new Date(dateStr + 'T00:00:00')
-          return getDateColor(d)
+    x: is2dMode.value
+      ? {
+          type: 'time' as const,
+          time: {
+            unit: 'hour' as const,
+            displayFormats: { hour: 'M/d HH:mm' },
+            tooltipFormat: 'M/d(eee) HH:mm',
+          },
+          min: new Date(allDates.value[0] + 'T00:00:00').getTime(),
+          max: new Date(allDates.value[allDates.value.length - 1] + 'T23:59:59').getTime(),
+          ticks: {
+            maxRotation: 45,
+            font: { size: 10 },
+            stepSize: 3,
+          },
+          grid: { display: false },
+        }
+      : {
+          ticks: {
+            maxRotation: 45,
+            font: { size: 10 },
+            autoSkip: true,
+            maxTicksLimit: Math.ceil(currentDays.value / tickStepSize.value),
+            color: (ctx: any) => {
+              const dateStr = allDates.value[ctx.index]
+              if (!dateStr) return '#6e6e73'
+              const d = new Date(dateStr + 'T00:00:00')
+              return getDateColor(d)
+            },
+          },
+          grid: { display: false },
         },
-      },
-      grid: {
-        display: false,
-      },
-    },
   },
 }))
 </script>
