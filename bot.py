@@ -4,14 +4,38 @@ import re
 import subprocess
 import threading
 import uuid
+
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+
+from kibunrogu_client import KibunroguClient
+from mood_session import MoodSessionManager
 
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
 
 SESSION_FILE = os.path.join(os.path.dirname(__file__), "sessions.json")
 WORKDIR = os.environ.get("CLAUDE_WORKDIR", "/home/tak")
+KIBUNROGU_CHANNEL = os.environ.get("KIBUNROGU_CHANNEL", "")
 
+kibunrogu = KibunroguClient()
+
+
+def on_session_timeout(channel_id: str) -> None:
+    try:
+        app.client.chat_postMessage(
+            channel=channel_id,
+            text="⏱ タイムアウト。記録がキャンセルされました。",
+        )
+    except Exception:
+        pass
+
+
+mood_sessions = MoodSessionManager(on_timeout=on_session_timeout)
+
+
+# --- Claude セッション管理 ---
 
 def load_sessions():
     try:
@@ -32,15 +56,12 @@ def convert_to_slack(text):
     i = 0
     while i < len(lines):
         line = lines[i]
-        # テーブル検出: | で始まる行が続く場合
         if line.strip().startswith("|"):
             table_lines = []
             while i < len(lines) and lines[i].strip().startswith("|"):
                 table_lines.append(lines[i])
                 i += 1
-            # セパレータ行（|---|）を除外
             rows = [l for l in table_lines if not re.match(r"^\s*\|[-| :]+\|\s*$", l)]
-            # セルを抽出してコードブロックで整形
             parsed = []
             for row in rows:
                 cells = [c.strip() for c in row.strip().strip("|").split("|")]
@@ -54,9 +75,7 @@ def convert_to_slack(text):
                         formatted.append("• " + " | ".join(row))
                 result.append("\n".join(formatted))
             continue
-        # **bold** → *bold*
         line = re.sub(r"\*\*(.+?)\*\*", r"*\1*", line)
-        # # 見出し → *見出し*
         line = re.sub(r"^#{1,3}\s+(.+)", r"*\1*", line)
         result.append(line)
         i += 1
@@ -152,15 +171,132 @@ def handle(event, say):
         say(result_holder[0])
 
 
+# --- 気分記録フロー ---
+
+def build_place_blocks(places: list[dict]) -> list[dict]:
+    buttons = []
+    for place in places[:24]:
+        buttons.append({
+            "type": "button",
+            "text": {"type": "plain_text", "text": place["name"]},
+            "action_id": f"mood_place_{place['id']}",
+            "value": str(place["id"]),
+        })
+    buttons.append({
+        "type": "button",
+        "text": {"type": "plain_text", "text": "スキップ"},
+        "action_id": "mood_place_skip",
+        "value": "skip",
+    })
+    return [
+        {"type": "section", "text": {"type": "mrkdwn", "text": "場所は？"}},
+        {"type": "actions", "elements": buttons},
+    ]
+
+
+def _finish_recording(channel_id, session, place_id, place_name, responder) -> None:
+    try:
+        kibunrogu.record_mood(session.level, session.memo, place_id)
+        parts = [f"レベル {session.level}"]
+        if session.memo:
+            parts.append(session.memo)
+        if place_name:
+            parts.append(place_name)
+        responder(f"✓ 記録完了 — {' / '.join(parts)}")
+    except Exception as e:
+        responder(f"❌ 記録に失敗しました: {e}")
+    finally:
+        mood_sessions.clear(channel_id)
+
+
+def handle_mood_message(event, say) -> None:
+    channel_id = event.get("channel", "")
+    text = re.sub(r"<@[^>]+>", "", event.get("text", "")).strip()
+
+    session = mood_sessions.get(channel_id)
+
+    if session is None:
+        if text.isdigit() and int(text) in range(1, 6):
+            session = mood_sessions.start(channel_id)
+            session.level = int(text)
+            session.step = "waiting_memo"
+            say(f"レベル {text} ✓\nメモは？（スキップ→「なし」）")
+        else:
+            mood_sessions.start(channel_id)
+            say("気分を記録しよう。レベルは？ (1〜5)")
+        return
+
+    if session.step == "waiting_level":
+        if not text.isdigit() or int(text) not in range(1, 6):
+            say("1〜5の数字を入力してください。")
+            return
+        session.level = int(text)
+        session.step = "waiting_memo"
+        say("メモは？（スキップ→「なし」）")
+
+    elif session.step == "waiting_memo":
+        session.memo = None if text in ("なし", "skip", "スキップ") else text
+        session.step = "waiting_place"
+        try:
+            places = kibunrogu.get_places()
+        except Exception:
+            places = []
+        if places:
+            say(blocks=build_place_blocks(places), text="場所は？")
+        else:
+            _finish_recording(channel_id, session, None, None, say)
+
+    elif session.step == "waiting_place":
+        say("場所をボタンで選択してください。")
+
+
+@app.action(re.compile(r"mood_place_.*"))
+def handle_place_action(ack, action, body, say) -> None:
+    ack()
+    channel_id = body["channel"]["id"]
+    session = mood_sessions.get(channel_id)
+    if not session or session.step != "waiting_place":
+        return
+    value = action["value"]
+    place_id = None if value == "skip" else int(value)
+    place_name = None if value == "skip" else action["text"]["text"]
+    _finish_recording(channel_id, session, place_id, place_name, say)
+
+
+# --- スケジュール通知 ---
+
+def notify_if_needed() -> None:
+    if not KIBUNROGU_CHANNEL:
+        return
+    try:
+        if kibunrogu.has_recent_record(hours=3):
+            return
+        app.client.chat_postMessage(
+            channel=KIBUNROGU_CHANNEL,
+            text="気分を記録しよう。レベルは？ (1〜5)",
+        )
+        mood_sessions.start(KIBUNROGU_CHANNEL)
+    except Exception as e:
+        print(f"[notify] エラー: {e}")
+
+
+# --- イベントハンドラ ---
+
 @app.event("message")
 def handle_message(event, say):
-    if event.get("bot_id"):
+    if event.get("bot_id") or event.get("subtype"):
         return
-    if event.get("subtype"):
-        return
-    handle(event, say)
+    if event.get("channel") == KIBUNROGU_CHANNEL:
+        handle_mood_message(event, say)
+    else:
+        handle(event, say)
 
 
 if __name__ == "__main__":
+    scheduler = BackgroundScheduler(timezone="Asia/Tokyo")
+    for hour in [6, 9, 12, 15, 18, 21]:
+        scheduler.add_job(notify_if_needed, CronTrigger(hour=hour, minute=0))
+    scheduler.start()
+
     handler = SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"])
     handler.start()
