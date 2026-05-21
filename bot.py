@@ -189,6 +189,15 @@ def build_level_blocks() -> list[dict]:
     ]
 
 
+def build_memo_blocks() -> list[dict]:
+    return [
+        {"type": "section", "text": {"type": "mrkdwn", "text": "メモは？（テキストを入力 or スキップ）"}},
+        {"type": "actions", "elements": [
+            {"type": "button", "text": {"type": "plain_text", "text": "スキップ"}, "action_id": "mood_memo_skip", "value": "skip"},
+        ]},
+    ]
+
+
 def build_place_blocks(places: list[dict]) -> list[dict]:
     buttons = []
     for place in places[:24]:
@@ -239,7 +248,7 @@ def handle_mood_message(event, say) -> None:
         say(blocks=build_level_blocks(), text="気分を記録しよう。レベルは？")
 
     elif session.step == "waiting_memo":
-        session.memo = None if text in ("なし", "skip", "スキップ") else text
+        session.memo = text
         session.step = "waiting_place"
         try:
             places = kibunrogu.get_places()
@@ -263,7 +272,26 @@ def handle_level_action(ack, action, body, say) -> None:
         return
     session.level = int(action["value"])
     session.step = "waiting_memo"
-    say(f"レベル {session.level} ✓\nメモは？（スキップ→「なし」）")
+    say(blocks=build_memo_blocks(), text="メモは？")
+
+
+@app.action("mood_memo_skip")
+def handle_memo_skip_action(ack, body, say) -> None:
+    ack()
+    channel_id = body["channel"]["id"]
+    session = mood_sessions.get(channel_id)
+    if not session or session.step != "waiting_memo":
+        return
+    session.memo = None
+    session.step = "waiting_place"
+    try:
+        places = kibunrogu.get_places()
+    except Exception:
+        places = []
+    if places:
+        say(blocks=build_place_blocks(places), text="場所は？")
+    else:
+        _finish_recording(channel_id, session, None, None, say)
 
 
 @app.action(re.compile(r"mood_place_.*"))
