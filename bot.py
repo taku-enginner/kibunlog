@@ -173,6 +173,22 @@ def handle(event, say):
 
 # --- 気分記録フロー ---
 
+def build_level_blocks() -> list[dict]:
+    buttons = [
+        {
+            "type": "button",
+            "text": {"type": "plain_text", "text": str(i)},
+            "action_id": f"mood_level_{i}",
+            "value": str(i),
+        }
+        for i in range(1, 6)
+    ]
+    return [
+        {"type": "section", "text": {"type": "mrkdwn", "text": "気分を記録しよう。レベルは？"}},
+        {"type": "actions", "elements": buttons},
+    ]
+
+
 def build_place_blocks(places: list[dict]) -> list[dict]:
     buttons = []
     for place in places[:24]:
@@ -211,28 +227,16 @@ def _finish_recording(channel_id, session, place_id, place_name, responder) -> N
 
 def handle_mood_message(event, say) -> None:
     channel_id = event.get("channel", "")
-    text = re.sub(r"<@[^>]+>", "", event.get("text", "")).strip()
 
     session = mood_sessions.get(channel_id)
 
     if session is None:
-        if text.isdigit() and int(text) in range(1, 6):
-            session = mood_sessions.start(channel_id)
-            session.level = int(text)
-            session.step = "waiting_memo"
-            say(f"レベル {text} ✓\nメモは？（スキップ→「なし」）")
-        else:
-            mood_sessions.start(channel_id)
-            say("気分を記録しよう。レベルは？ (1〜5)")
+        mood_sessions.start(channel_id)
+        say(blocks=build_level_blocks(), text="気分を記録しよう。レベルは？")
         return
 
     if session.step == "waiting_level":
-        if not text.isdigit() or int(text) not in range(1, 6):
-            say("1〜5の数字を入力してください。")
-            return
-        session.level = int(text)
-        session.step = "waiting_memo"
-        say("メモは？（スキップ→「なし」）")
+        say(blocks=build_level_blocks(), text="気分を記録しよう。レベルは？")
 
     elif session.step == "waiting_memo":
         session.memo = None if text in ("なし", "skip", "スキップ") else text
@@ -248,6 +252,18 @@ def handle_mood_message(event, say) -> None:
 
     elif session.step == "waiting_place":
         say("場所をボタンで選択してください。")
+
+
+@app.action(re.compile(r"mood_level_.*"))
+def handle_level_action(ack, action, body, say) -> None:
+    ack()
+    channel_id = body["channel"]["id"]
+    session = mood_sessions.get(channel_id)
+    if not session or session.step != "waiting_level":
+        return
+    session.level = int(action["value"])
+    session.step = "waiting_memo"
+    say(f"レベル {session.level} ✓\nメモは？（スキップ→「なし」）")
 
 
 @app.action(re.compile(r"mood_place_.*"))
@@ -273,7 +289,8 @@ def notify_if_needed() -> None:
             return
         app.client.chat_postMessage(
             channel=KIBUNROGU_CHANNEL,
-            text="気分を記録しよう。レベルは？ (1〜5)",
+            blocks=build_level_blocks(),
+            text="気分を記録しよう。レベルは？",
         )
         mood_sessions.start(KIBUNROGU_CHANNEL)
     except Exception as e:
