@@ -95,8 +95,8 @@ async function fetchMoods() {
   try {
     const today = new Date()
     const from = new Date(today)
-    // 1日モード時は昨日のデータも取得（背景表示用）
-    const extraDays = selectedRange.value === '1d' ? 1 : 0
+    // 1日モード: 昨日、1週間モード: 前週のデータも取得（背景表示用）
+    const extraDays = selectedRange.value === '1d' ? 1 : selectedRange.value === '1w' ? 7 : 0
     from.setDate(from.getDate() - (currentDays.value - 1) - extraDays)
     const result = await $fetch<Mood[]>(`${apiBase}/moods`, {
       params: {
@@ -353,52 +353,63 @@ const chartData = computed<ChartData<'line'>>(() => {
     return { datasets } as any
   }
 
-  // 1週間モード: 全データ + 日平均の重ね表示
+  // 1週間モード: 今週の日平均 + 前週の日平均を薄く重ねる
   if (is1wMode.value) {
-    const allEntries = [...moods.value]
-      .map((m) => ({
-        ...m,
-        sortKey: `${m.date} ${m.time ?? '00:00'}`,
-      }))
-      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-
     const dates = allDates.value
     const map = moodMap.value
+    const datasets: any[] = []
 
-    return {
-      datasets: [
-        {
-          label: '全記録',
-          data: allEntries.map((m) => ({
-            x: new Date(`${m.date}T${m.time ?? '12:00'}:00`).getTime(),
-            y: m.level,
-          })),
-          borderColor: '#007aff33',
-          backgroundColor: 'transparent',
-          tension: 0.2,
-          pointRadius: 4,
-          pointBackgroundColor: allEntries.map((m) => moodLevelColor(m.level)),
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1.5,
-          spanGaps: true,
-          fill: false,
-        },
-        {
-          label: '日平均',
-          data: dates.map((d) => ({
-            x: new Date(d + 'T12:00:00').getTime(),
-            y: map[d] ?? null,
-          })),
-          borderColor: '#007aff',
-          backgroundColor: 'transparent',
-          tension: 0.3,
-          pointRadius: 0,
-          spanGaps: true,
-          fill: false,
-          borderWidth: 2.5,
-        },
-      ],
-    } as any
+    // 前週のデータ（日平均を計算して今週の日付に揃える）
+    const prevWeekMap: Record<string, number | null> = {}
+    for (let i = 0; i < dates.length; i++) {
+      const prevDate = new Date(dates[i] + 'T00:00:00')
+      prevDate.setDate(prevDate.getDate() - 7)
+      const prevDateStr = toLocalDateStr(prevDate)
+      // moodMapには前週分も含まれている
+      prevWeekMap[dates[i]] = map[prevDateStr] ?? null
+    }
+
+    const hasPrevWeek = Object.values(prevWeekMap).some((v) => v != null)
+    if (hasPrevWeek) {
+      datasets.push({
+        label: '前週',
+        data: dates.map((d) => ({
+          x: new Date(d + 'T12:00:00').getTime(),
+          y: prevWeekMap[d],
+        })),
+        borderColor: '#007aff33',
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointRadius: 3,
+        pointBackgroundColor: '#007aff33',
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 0,
+        borderDash: [4, 4],
+        spanGaps: true,
+        fill: false,
+      })
+    }
+
+    // 今週のデータ
+    datasets.push({
+      label: '今週',
+      data: dates.map((d) => ({
+        x: new Date(d + 'T12:00:00').getTime(),
+        y: map[d] ?? null,
+      })),
+      borderColor: '#007aff',
+      backgroundColor: 'transparent',
+      tension: 0.3,
+      pointRadius: 5,
+      pointBackgroundColor: dates.map((d) => moodLevelColor(map[d])),
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      spanGaps: true,
+      fill: false,
+      borderWidth: 2.5,
+    })
+
+    return { datasets } as any
   }
 
   const dates = allDates.value

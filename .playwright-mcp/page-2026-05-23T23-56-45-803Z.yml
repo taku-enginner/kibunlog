@@ -1,0 +1,33 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]: kibunrogu
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - heading "きぶんグラフ" [level=1] [ref=e8]
+      - generic [ref=e9]:
+        - button "1日" [ref=e10] [cursor=pointer]
+        - button "1週間" [active] [ref=e11] [cursor=pointer]
+        - button "1ヶ月" [ref=e12] [cursor=pointer]
+      - img [ref=e32]
+      - generic [ref=e33]:
+        - paragraph [ref=e34]: ⚠ 注意シグナル
+        - paragraph [ref=e35]: "2日以上連続で「普通」以下の期間:"
+        - list [ref=e36]:
+          - listitem [ref=e37]: • 5/21 〜 5/24（4日間）
+  - navigation [ref=e15]:
+    - link "記録" [ref=e16] [cursor=pointer]:
+      - /url: /
+      - img [ref=e17]
+      - generic [ref=e20]: 記録
+    - link "グラフ" [ref=e21] [cursor=pointer]:
+      - /url: /graph
+      - img [ref=e22]
+      - generic [ref=e23]: グラフ
+    - link "履歴" [ref=e24] [cursor=pointer]:
+      - /url: /timeline
+      - img [ref=e25]
+      - generic [ref=e26]: 履歴
+    - link "+α" [ref=e27] [cursor=pointer]:
+      - /url: /insights
+      - img [ref=e28]
+      - generic [ref=e30]: +α
