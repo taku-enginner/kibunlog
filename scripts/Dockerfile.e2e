@@ -1,0 +1,7 @@
+FROM mcr.microsoft.com/playwright:v1.52.0-noble
+
+WORKDIR /app
+COPY e2e-test.mjs .
+RUN npm init -y && npm install playwright
+
+CMD ["node", "e2e-test.mjs"]

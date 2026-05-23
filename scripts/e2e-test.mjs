@@ -174,13 +174,13 @@ async function main() {
     // MoodFormの構成要素確認
     try {
       const moodBtns = await page.$$('.mood-btn')
-      if (moodBtns.length === 5) {
-        ok('気分ボタンが5段階表示される')
+      if (moodBtns.length === 10) {
+        ok('気分ボタンが10段階表示される')
       } else {
-        fail('気分ボタンが5段階表示される', `ボタン数: ${moodBtns.length}`)
+        fail('気分ボタンが10段階表示される', `ボタン数: ${moodBtns.length}`)
       }
     } catch (e) {
-      fail('気分ボタンが5段階表示される', e.message)
+      fail('気分ボタンが10段階表示される', e.message)
     }
 
     try {
@@ -607,13 +607,13 @@ async function main() {
 
   try {
     const filterBtns = await page.$$('.filter-btn')
-    if (filterBtns.length === 6) {
-      ok('フィルターボタンが6つ（すべて+5段階）表示される')
+    if (filterBtns.length === 11) {
+      ok('フィルターボタンが11個（すべて+10段階）表示される')
     } else {
-      fail('フィルターボタンが6つ（すべて+5段階）表示される', `ボタン数: ${filterBtns.length}`)
+      fail('フィルターボタンが11個（すべて+10段階）表示される', `ボタン数: ${filterBtns.length}`)
     }
   } catch (e) {
-    fail('フィルターボタンが6つ（すべて+5段階）表示される', e.message)
+    fail('フィルターボタンが11個（すべて+10段階）表示される', e.message)
   }
 
   try {
@@ -1153,29 +1153,29 @@ async function main() {
     await page.goto(BASE_URL + '/graph', { waitUntil: 'networkidle' })
     await page.waitForSelector('.range-btn', { timeout: 5000 })
 
-    // デフォルトで1ヶ月がアクティブ
+    // デフォルトで1週間がアクティブ
     const activeRange = await page.textContent('.range-btn.active')
-    if (activeRange?.includes('1ヶ月')) {
-      ok('デフォルトで「1ヶ月」がアクティブ')
+    if (activeRange?.includes('1週間')) {
+      ok('デフォルトで「1週間」がアクティブ')
     } else {
-      fail('デフォルトで「1ヶ月」がアクティブ', `アクティブ: ${activeRange}`)
+      fail('デフォルトで「1週間」がアクティブ', `アクティブ: ${activeRange}`)
     }
   } catch (e) {
-    fail('デフォルトで「1ヶ月」がアクティブ', e.message)
+    fail('デフォルトで「1週間」がアクティブ', e.message)
   }
 
   try {
     const btns = await page.$$('.range-btn')
-    await btns[0].click() // 2週間
+    await btns[0].click() // 1日
     await page.waitForTimeout(500)
     const active = await page.textContent('.range-btn.active')
-    if (active?.includes('2週間')) {
-      ok('「2週間」に切替えできる')
+    if (active?.includes('1日')) {
+      ok('「1日」に切替えできる')
     } else {
-      fail('「2週間」に切替えできる', `アクティブ: ${active}`)
+      fail('「1日」に切替えできる', `アクティブ: ${active}`)
     }
   } catch (e) {
-    fail('「2週間」に切替えできる', e.message)
+    fail('「1日」に切替えできる', e.message)
   }
 
   try {

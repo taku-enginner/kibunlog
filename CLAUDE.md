@@ -23,7 +23,8 @@
 ### E2Eテスト (Playwright)
 
 - テストファイル: `scripts/e2e-test.mjs`
-- 実行: `BASE_URL=http://localhost:3001 API_URL=http://localhost:18000 node scripts/e2e-test.mjs`
+- 実行（Docker）: `docker-compose -f docker-compose.mac.yml run --rm e2e`
+- 実行（ローカル）: `node scripts/e2e-test.mjs`
 - UI構造やページ遷移を変更したらE2Eテストも更新
 
 ## 開発環境
