@@ -19,14 +19,19 @@ function fail(name, err) {
 }
 
 async function main() {
-  // Auth
+  // Auth: try register first (no-op if user exists), then login
+  await fetch(`${API_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
+  })
   const loginRes = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
   })
   if (!loginRes.ok) {
-    console.error('Login failed. Register user first.')
+    console.error('Login failed.')
     process.exit(1)
   }
   const { token } = await loginRes.json()
@@ -35,6 +40,7 @@ async function main() {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
+    ignoreHTTPSErrors: true,
   })
   const page = await context.newPage()
 

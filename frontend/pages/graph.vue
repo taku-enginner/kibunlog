@@ -406,8 +406,9 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
             displayFormats: { hour: 'M/d HH:mm' },
             tooltipFormat: 'M/d(eee) HH:mm',
           },
-          min: new Date(allDates.value[0] + 'T00:00:00').getTime(),
-          max: new Date(allDates.value[allDates.value.length - 1] + 'T23:59:59').getTime(),
+          min: new Date(allDates.value[0] + 'T06:00:00').getTime(),
+          max: new Date(allDates.value[allDates.value.length - 1] + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000,
+          offset: true,
           ticks: {
             maxRotation: 45,
             font: { size: 10 },
