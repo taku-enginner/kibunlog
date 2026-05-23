@@ -53,7 +53,7 @@ def get_or_create_user(db):
     return user
 
 
-def generate_moods(user_id: int, days: int = 7) -> list[Mood]:
+def generate_moods(user_id: int, days: int = 30) -> list[Mood]:
     moods = []
     today = date.today()
     for i in range(days):
@@ -78,6 +78,7 @@ def generate_moods(user_id: int, days: int = 7) -> list[Mood]:
 def main():
     parser = argparse.ArgumentParser(description="テストデータ投入")
     parser.add_argument("--clear", action="store_true", help="既存のテストユーザーデータをクリアして再投入")
+    parser.add_argument("--days", type=int, default=30, help="生成する日数 (デフォルト: 30)")
     args = parser.parse_args()
 
     Base.metadata.create_all(bind=engine)
@@ -91,10 +92,10 @@ def main():
             db.commit()
             print(f"既存データ削除: {deleted}件")
 
-        moods = generate_moods(user.id)
+        moods = generate_moods(user.id, days=args.days)
         db.add_all(moods)
         db.commit()
-        print(f"Moodデータ投入完了: {len(moods)}件 (直近7日分)")
+        print(f"Moodデータ投入完了: {len(moods)}件 (直近{args.days}日分)")
     finally:
         db.close()
 

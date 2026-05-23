@@ -17,7 +17,7 @@
     <div v-if="loading" class="loading">読み込み中...</div>
     <div v-else-if="fetchError" class="error-msg">データの取得に失敗しました。</div>
     <div v-else class="chart-wrapper">
-      <Line :key="selectedRange" :data="chartData" :options="chartOptions" />
+      <Line :key="selectedRange" :data="chartData" :options="chartOptions" :plugins="chartPlugins" />
     </div>
 
     <div v-if="warningRanges.length > 0" class="warnings">
@@ -43,12 +43,13 @@ import {
   LineElement,
   Title,
   Tooltip,
+  Legend,
   Filler,
 } from 'chart.js'
 import type { ChartData, ChartOptions } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 
-ChartJS.register(CategoryScale, LinearScale, TimeScale, PointElement, LineElement, Title, Tooltip, Filler)
+ChartJS.register(CategoryScale, LinearScale, TimeScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 interface Mood {
   date: string
@@ -94,7 +95,9 @@ async function fetchMoods() {
   try {
     const today = new Date()
     const from = new Date(today)
-    from.setDate(from.getDate() - (currentDays.value - 1))
+    // 1日モード時は昨日のデータも取得（背景表示用）
+    const extraDays = selectedRange.value === '1d' ? 1 : 0
+    from.setDate(from.getDate() - (currentDays.value - 1) - extraDays)
     const result = await $fetch<Mood[]>(`${apiBase}/moods`, {
       params: {
         from_date: toLocalDateStr(from),
@@ -118,6 +121,7 @@ function selectRange(key: string) {
 onMounted(() => fetchMoods())
 
 const is1dMode = computed(() => selectedRange.value === '1d')
+const is1wMode = computed(() => selectedRange.value === '1w')
 
 const moodMap = computed(() => {
   const sums: Record<string, { total: number; count: number }> = {}
@@ -146,10 +150,29 @@ const allDates = computed(() => {
   return dates
 })
 
-// 1日モード: 個別エントリを時刻順にプロット
+// 1日モード: 今日の日付文字列
+const todayStr = computed(() => toLocalDateStr(new Date()))
+
+// 1日モード: 個別エントリを時刻順にプロット（今日分のみ）
 const sortedMoods1d = computed(() => {
   if (!is1dMode.value) return []
   return [...moods.value]
+    .filter((m) => m.date === todayStr.value)
+    .map((m) => ({
+      ...m,
+      sortKey: `${m.date} ${m.time ?? '00:00'}`,
+    }))
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+})
+
+// 1日モード: 昨日のエントリ（背景表示用）
+const yesterdayMoods1d = computed(() => {
+  if (!is1dMode.value) return []
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = toLocalDateStr(yesterday)
+  return [...moods.value]
+    .filter((m) => m.date === yesterdayStr)
     .map((m) => ({
       ...m,
       sortKey: `${m.date} ${m.time ?? '00:00'}`,
@@ -284,23 +307,95 @@ const chartData = computed<ChartData<'line'>>(() => {
   // 1日モード: 個別エントリを時刻ベースの軸でプロット
   if (is1dMode.value) {
     const entries = sortedMoods1d.value
+    const yesterdayEntries = yesterdayMoods1d.value
+    const datasets: any[] = []
+
+    // 昨日のデータ（薄く背景に表示）
+    if (yesterdayEntries.length > 0) {
+      datasets.push({
+        label: '昨日',
+        data: yesterdayEntries.map((m) => ({
+          // 時刻だけ使い、日付を今日に揃えてx軸上に重ねる
+          x: new Date(`${todayStr.value}T${m.time ?? '00:00'}:00`).getTime(),
+          y: m.level,
+        })),
+        borderColor: '#007aff33',
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointRadius: 3,
+        pointBackgroundColor: '#007aff33',
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 0,
+        borderDash: [4, 4],
+        spanGaps: true,
+        fill: false,
+      })
+    }
+
+    // 今日のデータ
+    datasets.push({
+      label: '今日',
+      data: entries.map((m) => ({
+        x: new Date(`${m.date}T${m.time ?? '00:00'}:00`).getTime(),
+        y: m.level,
+      })),
+      borderColor: '#007aff',
+      backgroundColor: '#007aff22',
+      tension: 0.3,
+      pointRadius: 5,
+      pointBackgroundColor: entries.map((m) => moodLevelColor(m.level)),
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      spanGaps: true,
+      fill: false,
+    })
+
+    return { datasets } as any
+  }
+
+  // 1週間モード: 全データ + 日平均の重ね表示
+  if (is1wMode.value) {
+    const allEntries = [...moods.value]
+      .map((m) => ({
+        ...m,
+        sortKey: `${m.date} ${m.time ?? '00:00'}`,
+      }))
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+
+    const dates = allDates.value
+    const map = moodMap.value
+
     return {
       datasets: [
         {
-          label: '気分',
-          data: entries.map((m) => ({
-            x: new Date(`${m.date}T${m.time ?? '00:00'}:00`).getTime(),
+          label: '全記録',
+          data: allEntries.map((m) => ({
+            x: new Date(`${m.date}T${m.time ?? '12:00'}:00`).getTime(),
             y: m.level,
           })),
-          borderColor: '#007aff',
-          backgroundColor: '#007aff22',
-          tension: 0.3,
-          pointRadius: 5,
-          pointBackgroundColor: entries.map((m) => moodLevelColor(m.level)),
+          borderColor: '#007aff33',
+          backgroundColor: 'transparent',
+          tension: 0.2,
+          pointRadius: 4,
+          pointBackgroundColor: allEntries.map((m) => moodLevelColor(m.level)),
           pointBorderColor: '#fff',
-          pointBorderWidth: 2,
+          pointBorderWidth: 1.5,
           spanGaps: true,
           fill: false,
+        },
+        {
+          label: '日平均',
+          data: dates.map((d) => ({
+            x: new Date(d + 'T12:00:00').getTime(),
+            y: map[d] ?? null,
+          })),
+          borderColor: '#007aff',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          pointRadius: 0,
+          spanGaps: true,
+          fill: false,
+          borderWidth: 2.5,
         },
       ],
     } as any
@@ -354,6 +449,67 @@ const chartData = computed<ChartData<'line'>>(() => {
   }
 })
 
+// 1週間モード: 日ごとの背景ストライプ
+const dayStripePlugin = {
+  id: 'dayStripe',
+  beforeDraw(chart: any) {
+    const xScale = chart.scales.x
+    if (!xScale || xScale.type !== 'time') return
+
+    const ctx = chart.ctx
+    const { top, bottom } = chart.chartArea
+    const dates = allDates.value
+
+    for (let i = 0; i < dates.length; i++) {
+      const dayStart = new Date(dates[i] + 'T00:00:00').getTime()
+      const dayEnd = new Date(dates[i] + 'T23:59:59').getTime()
+      const x1 = xScale.getPixelForValue(dayStart)
+      const x2 = xScale.getPixelForValue(dayEnd)
+
+      if (i % 2 === 0) {
+        ctx.fillStyle = 'rgba(0, 122, 255, 0.04)'
+        ctx.fillRect(x1, top, x2 - x1, bottom - top)
+      }
+    }
+  },
+}
+
+// 1日モード: 朝昼夕夜の背景色分け
+const timeZonePlugin = {
+  id: 'timeZone',
+  beforeDraw(chart: any) {
+    const xScale = chart.scales.x
+    if (!xScale || xScale.type !== 'time') return
+
+    const ctx = chart.ctx
+    const { top, bottom } = chart.chartArea
+    const base = todayStr.value
+
+    const zones = [
+      { start: '06:00', end: '10:00', color: 'rgba(255, 200, 50, 0.08)' },  // 朝
+      { start: '10:00', end: '14:00', color: 'rgba(255, 150, 0, 0.08)' },   // 昼
+      { start: '14:00', end: '18:00', color: 'rgba(200, 100, 50, 0.08)' },  // 夕
+      { start: '18:00', end: '24:00', color: 'rgba(80, 80, 160, 0.08)' },   // 夜
+    ]
+
+    for (const zone of zones) {
+      const endTime = zone.end === '24:00' ? '23:59:59' : zone.start
+      const x1 = xScale.getPixelForValue(new Date(`${base}T${zone.start}:00`).getTime())
+      const x2 = zone.end === '24:00'
+        ? xScale.getPixelForValue(new Date(`${base}T23:59:59`).getTime())
+        : xScale.getPixelForValue(new Date(`${base}T${zone.end}:00`).getTime())
+      ctx.fillStyle = zone.color
+      ctx.fillRect(x1, top, x2 - x1, bottom - top)
+    }
+  },
+}
+
+const chartPlugins = computed(() => {
+  if (is1dMode.value) return [timeZonePlugin]
+  if (is1wMode.value) return [dayStripePlugin]
+  return []
+})
+
 const chartOptions = computed<ChartOptions<'line'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
@@ -361,15 +517,21 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
     tooltip: {
       callbacks: {
         label: (ctx: any) => {
-          if (ctx.datasetIndex !== 0) return ''
+          const dsLabel = ctx.dataset.label
+          // 週/月モードでは注意区間・移動平均のtooltipを非表示
+          if (!is1dMode.value && ctx.datasetIndex !== 0) return ''
           const level = ctx.parsed.y
           const rounded = Math.round(level)
           const labelMap: Record<number, string> = { 10: '最高', 9: '最高', 8: '良い', 7: '良い', 6: '普通', 5: '普通', 4: 'いまいち', 3: 'いまいち', 2: 'しんどい', 1: 'しんどい' }
-          const label = labelMap[rounded] ?? ''
-          return Number.isInteger(level) ? `${level} ${label}` : `${level.toFixed(1)} (${label})`
+          const moodLabel = labelMap[rounded] ?? ''
+          const prefix = is1dMode.value ? `${dsLabel}: ` : ''
+          return Number.isInteger(level) ? `${prefix}${level} ${moodLabel}` : `${prefix}${level.toFixed(1)} (${moodLabel})`
         },
       },
-      filter: (item: any) => item.datasetIndex === 0,
+      filter: (item: any) => {
+        if (is1dMode.value || is1wMode.value) return item.datasetIndex === 0
+        return item.datasetIndex === 0
+      },
     },
     legend: {
       display: false,
@@ -403,34 +565,63 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
           type: 'time' as const,
           time: {
             unit: 'hour' as const,
-            displayFormats: { hour: 'M/d HH:mm' },
-            tooltipFormat: 'M/d(eee) HH:mm',
+            displayFormats: { hour: 'H時' },
+            tooltipFormat: 'H:mm',
           },
-          min: new Date(allDates.value[0] + 'T06:00:00').getTime(),
-          max: new Date(allDates.value[allDates.value.length - 1] + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000,
-          offset: true,
+          min: new Date(todayStr.value + 'T06:00:00').getTime(),
+          max: new Date(todayStr.value + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000,
+          afterBuildTicks: (axis: any) => {
+            const base = todayStr.value
+            axis.ticks = [6, 10, 14, 18, 22].map((h) => ({
+              value: new Date(`${base}T${String(h).padStart(2, '0')}:00:00`).getTime(),
+            }))
+          },
           ticks: {
-            maxRotation: 45,
             font: { size: 10 },
-            stepSize: 3,
           },
           grid: { display: false },
         }
-      : {
-          ticks: {
-            maxRotation: 45,
-            font: { size: 10 },
-            autoSkip: true,
-            maxTicksLimit: Math.ceil(currentDays.value / tickStepSize.value),
-            color: (ctx: any) => {
-              const dateStr = allDates.value[ctx.index]
-              if (!dateStr) return '#6e6e73'
-              const d = new Date(dateStr + 'T00:00:00')
-              return getDateColor(d)
+      : is1wMode.value
+        ? {
+            type: 'time' as const,
+            time: {
+              unit: 'day' as const,
+              displayFormats: { day: 'M/d(eee)' },
+              tooltipFormat: 'M/d(eee) H:mm',
             },
+            min: new Date(allDates.value[0] + 'T00:00:00').getTime(),
+            max: new Date(allDates.value[allDates.value.length - 1] + 'T23:59:59').getTime(),
+            afterBuildTicks: (axis: any) => {
+              // 各日の12:00にティックを配置してストライプ中央にラベルを置く
+              axis.ticks = allDates.value.map((d: string) => ({
+                value: new Date(d + 'T12:00:00').getTime(),
+              }))
+            },
+            ticks: {
+              maxRotation: 45,
+              font: { size: 10 },
+              color: (ctx: any) => {
+                const d = new Date(ctx.tick.value)
+                return getDateColor(d)
+              },
+            },
+            grid: { display: false },
+          }
+        : {
+            ticks: {
+              maxRotation: 45,
+              font: { size: 10 },
+              autoSkip: true,
+              maxTicksLimit: Math.ceil(currentDays.value / tickStepSize.value),
+              color: (ctx: any) => {
+                const dateStr = allDates.value[ctx.index]
+                if (!dateStr) return '#6e6e73'
+                const d = new Date(dateStr + 'T00:00:00')
+                return getDateColor(d)
+              },
+            },
+            grid: { display: false },
           },
-          grid: { display: false },
-        },
   },
 }))
 </script>
