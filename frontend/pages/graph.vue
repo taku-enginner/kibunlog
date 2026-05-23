@@ -79,7 +79,7 @@ const rangeOptions: RangeOption[] = [
   { key: '1m', label: '1ヶ月', days: 30 },
 ]
 
-const selectedRange = ref('1w')
+const selectedRange = ref('1d')
 const moods = ref<Mood[]>([])
 const loading = ref(true)
 const fetchError = ref(false)
