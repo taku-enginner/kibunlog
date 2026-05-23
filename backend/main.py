@@ -133,6 +133,7 @@ class MoodIn(BaseModel):
     level: int
     memo: str | None = None
     place_id: int | None = None
+    place_tag: str | None = None
 
 
 class MoodOut(BaseModel):
@@ -143,6 +144,7 @@ class MoodOut(BaseModel):
     memo: str | None = None
     place_id: int | None = None
     place_name: str | None = None
+    place_tag: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     has_image: bool = False
@@ -157,6 +159,7 @@ def _mood_to_out(mood: Mood, place: Place | None) -> MoodOut:
         memo=mood.memo,
         place_id=mood.place_id,
         place_name=place.name if place else None,
+        place_tag=mood.place_tag,
         latitude=place.latitude if place else None,
         longitude=place.longitude if place else None,
         has_image=mood.image_path is not None,
@@ -171,7 +174,7 @@ def record_mood(
 ):
     mood = Mood(
         user_id=user.id, date=body.date, time=body.time,
-        level=body.level, memo=body.memo, place_id=body.place_id,
+        level=body.level, memo=body.memo, place_id=body.place_id, place_tag=body.place_tag,
     )
     db.add(mood)
     db.commit()
@@ -310,6 +313,7 @@ def update_mood(
     mood.level = body.level
     mood.memo = body.memo
     mood.place_id = body.place_id
+    mood.place_tag = body.place_tag
     mood.date = body.date
     mood.time = body.time
     db.commit()

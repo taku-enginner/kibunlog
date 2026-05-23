@@ -67,6 +67,15 @@ class TestMoods:
         resp = client.get("/moods", headers=auth_header)
         assert len(resp.json()) == 0
 
+    def test_create_mood_with_place_tag(self, client, auth_header):
+        resp = client.post(
+            "/moods",
+            json={"date": "2025-01-01", "level": 8, "place_tag": "会社"},
+            headers=auth_header,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["place_tag"] == "会社"
+
     def test_unauthorized_access(self, client):
         resp = client.get("/moods")
         assert resp.status_code == 401
