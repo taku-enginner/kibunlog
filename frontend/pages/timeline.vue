@@ -242,6 +242,8 @@
 </template>
 
 <script setup lang="ts">
+import { moodConfig } from '~/composables/useMoodConfig'
+
 interface Mood {
   id: number
   date: string
