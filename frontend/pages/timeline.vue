@@ -266,21 +266,6 @@ const { getHeaders } = useAuth()
 const { show: showToast } = useToast()
 const { getDayName, getDateColor, formatWithDay, toLocalDateStr } = useDate()
 
-const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
-  5: { emoji: '😆', label: '最高', bg: '#c8e6c9', color: '#1b5e20' },
-  4: { emoji: '😊', label: '良い', bg: '#d4edda', color: '#155724' },
-  3: { emoji: '😐', label: '普通', bg: '#fff3cd', color: '#856404' },
-  2: { emoji: '😣', label: 'いまいち', bg: '#f8d7da', color: '#721c24' },
-  1: { emoji: '😵', label: 'しんどい', bg: '#f5c6cb', color: '#491217' },
-}
-
-const moodOptions = [
-  { level: 5, ...moodConfig[5] },
-  { level: 4, ...moodConfig[4] },
-  { level: 3, ...moodConfig[3] },
-  { level: 2, ...moodConfig[2] },
-  { level: 1, ...moodConfig[1] },
-]
 
 const today = new Date()
 const todayStr = toLocalDateStr(today)
@@ -301,14 +286,19 @@ const viewingImageMoodId = ref<number | null>(null)
 const viewingImageUrl = ref<string | null>(null)
 const imageLoading = ref(false)
 const imageListIds = ref<number[]>([]) // ordered list of mood IDs with images for swipe nav
-const swipeStartX = ref(0)
-const swipeStartY = ref(0)
+
+const { onTouchStart: onViewerTouchStart, onTouchEnd: onViewerTouchEnd } = useSwipeDetect(
+  () => navigateImage('next'),
+  () => navigateImage('prev'),
+)
 
 // Detail view state (today tab)
 const detailMood = ref<Mood | null>(null)
 const detailListIds = ref<number[]>([])
-const detailSwipeStartX = ref(0)
-const detailSwipeStartY = ref(0)
+const { onTouchStart: onDetailTouchStart, onTouchEnd: onDetailTouchEnd } = useSwipeDetect(
+  () => navigateDetail('next'),
+  () => navigateDetail('prev'),
+)
 const detailImageUrl = ref<string | null>(null)
 const detailImageLoading = ref(false)
 
@@ -503,19 +493,6 @@ function navigateImage(direction: 'prev' | 'next') {
   loadImage(imageListIds.value[nextIdx])
 }
 
-function onViewerTouchStart(e: TouchEvent) {
-  swipeStartX.value = e.touches[0].clientX
-  swipeStartY.value = e.touches[0].clientY
-}
-
-function onViewerTouchEnd(e: TouchEvent) {
-  const dx = e.changedTouches[0].clientX - swipeStartX.value
-  const dy = e.changedTouches[0].clientY - swipeStartY.value
-  // Only trigger if horizontal swipe > 50px and more horizontal than vertical
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-    navigateImage(dx < 0 ? 'next' : 'prev')
-  }
-}
 
 function closeImageViewer() {
   if (viewingImageUrl.value) {
@@ -587,18 +564,6 @@ function navigateDetail(direction: 'prev' | 'next') {
   if (nextMood) showDetailForMood(nextMood)
 }
 
-function onDetailTouchStart(e: TouchEvent) {
-  detailSwipeStartX.value = e.touches[0].clientX
-  detailSwipeStartY.value = e.touches[0].clientY
-}
-
-function onDetailTouchEnd(e: TouchEvent) {
-  const dx = e.changedTouches[0].clientX - detailSwipeStartX.value
-  const dy = e.changedTouches[0].clientY - detailSwipeStartY.value
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-    navigateDetail(dx < 0 ? 'next' : 'prev')
-  }
-}
 
 // --- Download mode ---
 function enterDownloadMode() {

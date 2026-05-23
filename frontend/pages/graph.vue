@@ -74,15 +74,12 @@ const { getHeaders } = useAuth()
 const { getDayName, getDateColor, toLocalDateStr } = useDate()
 
 const rangeOptions: RangeOption[] = [
-  { key: '2d', label: '2日間', days: 2 },
-  { key: '2w', label: '2週間', days: 14 },
+  { key: '1d', label: '1日', days: 1 },
+  { key: '1w', label: '1週間', days: 7 },
   { key: '1m', label: '1ヶ月', days: 30 },
-  { key: '6m', label: '半年', days: 183 },
-  { key: '1y', label: '1年', days: 365 },
-  { key: '3y', label: '3年', days: 1095 },
 ]
 
-const selectedRange = ref('1m')
+const selectedRange = ref('1w')
 const moods = ref<Mood[]>([])
 const loading = ref(true)
 const fetchError = ref(false)
@@ -120,7 +117,7 @@ function selectRange(key: string) {
 
 onMounted(() => fetchMoods())
 
-const is2dMode = computed(() => selectedRange.value === '2d')
+const is1dMode = computed(() => selectedRange.value === '1d')
 
 const moodMap = computed(() => {
   const sums: Record<string, { total: number; count: number }> = {}
@@ -149,15 +146,30 @@ const allDates = computed(() => {
   return dates
 })
 
-// 2日間モード: 個別エントリを時刻順にプロット
-const sortedMoods2d = computed(() => {
-  if (!is2dMode.value) return []
+// 1日モード: 個別エントリを時刻順にプロット
+const sortedMoods1d = computed(() => {
+  if (!is1dMode.value) return []
   return [...moods.value]
     .map((m) => ({
       ...m,
       sortKey: `${m.date} ${m.time ?? '00:00'}`,
     }))
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+})
+
+// 移動平均（windowサイズ分の平均。端はそのまま）
+const movingAvgWindow = computed(() => selectedRange.value === '1m' ? 7 : 3)
+
+const movingAvgData = computed(() => {
+  const dates = allDates.value
+  const map = moodMap.value
+  const w = movingAvgWindow.value
+  return dates.map((_, i) => {
+    const slice = dates.slice(Math.max(0, i - w + 1), i + 1)
+    const vals = slice.map((d) => map[d]).filter((v): v is number => v != null)
+    if (vals.length === 0) return null
+    return vals.reduce((a, b) => a + b, 0) / vals.length
+  })
 })
 
 const warningRanges = computed<WarningRange[]>(() => {
@@ -170,7 +182,7 @@ const warningRanges = computed<WarningRange[]>(() => {
 
   for (const date of dates) {
     const level = map[date]
-    if (level !== null && level !== undefined && level <= 3) {
+    if (level !== null && level !== undefined && level <= 6) {
       if (!start) start = date
       count++
     } else {
@@ -234,7 +246,7 @@ const warningBackgroundColors = computed(() => {
 
   for (let i = 0; i < dates.length; i++) {
     const level = map[dates[i]]
-    if (level !== null && level !== undefined && level <= 3) {
+    if (level !== null && level !== undefined && level <= 6) {
       if (runStart === -1) runStart = i
     } else {
       if (runStart !== -1 && i - runStart >= 2) {
@@ -267,19 +279,11 @@ const pointSize = computed(() => {
   return 0
 })
 
-function levelColor(level: number | null): string {
-  if (level == null) return '#ccc'
-  if (level >= 4.5) return '#1b5e20'
-  if (level >= 3.5) return '#28a745'
-  if (level >= 2.5) return '#ffc107'
-  if (level >= 1.5) return '#dc3545'
-  return '#491217'
-}
 
 const chartData = computed<ChartData<'line'>>(() => {
-  // 2日間モード: 個別エントリを時刻ベースの軸でプロット
-  if (is2dMode.value) {
-    const entries = sortedMoods2d.value
+  // 1日モード: 個別エントリを時刻ベースの軸でプロット
+  if (is1dMode.value) {
+    const entries = sortedMoods1d.value
     return {
       datasets: [
         {
@@ -292,7 +296,7 @@ const chartData = computed<ChartData<'line'>>(() => {
           backgroundColor: '#007aff22',
           tension: 0.3,
           pointRadius: 5,
-          pointBackgroundColor: entries.map((m) => levelColor(m.level)),
+          pointBackgroundColor: entries.map((m) => moodLevelColor(m.level)),
           pointBorderColor: '#fff',
           pointBorderWidth: 2,
           spanGaps: true,
@@ -305,6 +309,7 @@ const chartData = computed<ChartData<'line'>>(() => {
   const dates = allDates.value
   const map = moodMap.value
   const warnings = warningBackgroundColors.value
+  const mavg = movingAvgData.value
 
   return {
     labels: dates.map(formatTickLabel),
@@ -312,19 +317,30 @@ const chartData = computed<ChartData<'line'>>(() => {
       {
         label: '気分',
         data: dates.map((d) => map[d] ?? null) as (number | null)[],
-        borderColor: '#007aff',
-        backgroundColor: '#007aff22',
+        borderColor: '#007aff44',
+        backgroundColor: 'transparent',
         tension: 0.3,
         pointRadius: pointSize.value,
-        pointBackgroundColor: dates.map((d) => levelColor(map[d])),
+        pointBackgroundColor: dates.map((d) => moodLevelColor(map[d])),
         pointBorderColor: '#fff',
         pointBorderWidth: pointSize.value > 0 ? 2 : 0,
         spanGaps: true,
         fill: false,
       },
       {
+        label: '移動平均',
+        data: mavg as (number | null)[],
+        borderColor: '#007aff',
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        pointRadius: 0,
+        spanGaps: true,
+        fill: false,
+        borderWidth: 2.5,
+      },
+      {
         label: '注意区間',
-        data: dates.map(() => 5.2),
+        data: dates.map(() => 10.4),
         backgroundColor: dates.map((_, i) =>
           warnings[i] ? 'rgba(255, 235, 59, 0.25)' : 'transparent'
         ),
@@ -345,12 +361,12 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
     tooltip: {
       callbacks: {
         label: (ctx: any) => {
-          if (ctx.datasetIndex === 1) return ''
+          if (ctx.datasetIndex !== 0) return ''
           const level = ctx.parsed.y
           const rounded = Math.round(level)
-          const labels: Record<number, string> = { 5: '最高', 4: '良い', 3: '普通', 2: 'いまいち', 1: 'しんどい' }
-          const label = labels[rounded] ?? ''
-          return Number.isInteger(level) ? label : `${level.toFixed(1)} (${label})`
+          const labelMap: Record<number, string> = { 10: '最高', 9: '最高', 8: '良い', 7: '良い', 6: '普通', 5: '普通', 4: 'いまいち', 3: 'いまいち', 2: 'しんどい', 1: 'しんどい' }
+          const label = labelMap[rounded] ?? ''
+          return Number.isInteger(level) ? `${level} ${label}` : `${level.toFixed(1)} (${label})`
         },
       },
       filter: (item: any) => item.datasetIndex === 0,
@@ -362,18 +378,18 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
   scales: {
     y: {
       min: 1,
-      max: 5,
+      max: 10,
       ticks: {
         stepSize: 1,
         display: true,
         font: { size: 11 },
         callback: (value: any) => {
           const labels: Record<number, string> = {
-            5: '5 最高',
-            4: '4 良い',
-            3: '3 普通',
-            2: '2 いまいち',
-            1: '1 しんどい',
+            10: '10 最高',
+            8: '8 良い',
+            6: '6 普通',
+            4: '4 いまいち',
+            2: '2 しんどい',
           }
           return labels[Number(value)] ?? ''
         },
@@ -382,7 +398,7 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
         color: '#e0e0e0',
       },
     },
-    x: is2dMode.value
+    x: is1dMode.value
       ? {
           type: 'time' as const,
           time: {
@@ -467,8 +483,7 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
 
 .chart-wrapper {
   width: 100%;
-  flex: 1;
-  min-height: 0;
+  height: 260px;
   background: #fff;
   border-radius: 16px;
   padding: 16px 8px;

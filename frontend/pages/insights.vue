@@ -49,7 +49,7 @@
             <div class="day-bar-wrapper">
               <div
                 class="day-bar"
-                :style="{ height: d.avg > 0 ? `${(d.avg / 5) * 100}%` : '2px', background: scoreColor(d.avg) }"
+                :style="{ height: d.avg > 0 ? `${(d.avg / 10) * 100}%` : '2px', background: scoreColor(d.avg) }"
               ></div>
             </div>
             <span class="day-avg">{{ d.avg > 0 ? d.avg.toFixed(1) : '—' }}</span>
@@ -66,7 +66,7 @@
             <div class="time-bar-wrapper">
               <div
                 class="time-bar"
-                :style="{ height: t.avg > 0 ? `${(t.avg / 5) * 100}%` : '2px', background: scoreColor(t.avg) }"
+                :style="{ height: t.avg > 0 ? `${(t.avg / 10) * 100}%` : '2px', background: scoreColor(t.avg) }"
               ></div>
             </div>
             <span class="time-avg">{{ t.avg > 0 ? t.avg.toFixed(1) : '—' }}</span>
@@ -97,7 +97,7 @@
             <thead>
               <tr>
                 <th></th>
-                <th v-for="slot in timeSlotLabels" :key="slot">{{ slot }}</th>
+                <th v-for="slot in TIME_SLOTS" :key="slot.label">{{ slot.label }}</th>
               </tr>
             </thead>
             <tbody>
@@ -187,7 +187,7 @@
             <div class="freq-bar-wrapper">
               <div
                 class="freq-bar"
-                :style="{ height: f.avg > 0 ? `${(f.avg / 5) * 100}%` : '2px', background: scoreColor(f.avg) }"
+                :style="{ height: f.avg > 0 ? `${(f.avg / 10) * 100}%` : '2px', background: scoreColor(f.avg) }"
               ></div>
             </div>
             <span class="freq-avg">{{ f.avg > 0 ? f.avg.toFixed(1) : '—' }}</span>
@@ -294,15 +294,16 @@ function handleLogout() {
 }
 const { getDateColor, toLocalDateStr } = useDate()
 
-const dayNames = ['日', '月', '火', '水', '木', '金', '土']
 
 const moods = ref<Mood[]>([])
 const loading = ref(true)
 
+// insights専用: 平均スコアの色（低スコアはグレー）
 function scoreColor(avg: number): string {
-  if (avg >= 4.5) return '#1b5e20'
-  if (avg >= 3.5) return '#28a745'
-  if (avg >= 2.5) return '#ffc107'
+  const { best, good, neutral } = MOOD_THRESHOLDS
+  if (avg >= best) return '#1b5e20'
+  if (avg >= good) return '#28a745'
+  if (avg >= neutral) return '#ffc107'
   if (avg > 0) return '#b0b0b0'
   return '#d5d5d5'
 }
@@ -317,349 +318,15 @@ onMounted(async () => {
   loading.value = false
 })
 
-// --- 週次サマリー ---
-const thisWeekAvg = computed(() => {
-  const now = new Date()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-  const from = toLocalDateStr(monday)
-  const items = moods.value.filter((m) => m.date >= from)
-  if (items.length === 0) return 0
-  return items.reduce((s, m) => s + m.level, 0) / items.length
-})
+const {
+  thisWeekAvg, thisWeekCount, lastWeekAvg, lastWeekCount,
+  dayOfWeekStats, timeSlotStats, placeRanking,
+  currentStreak, maxStreak, missedDays,
+  dayTimeMatrix, placeDayMatrix,
+  intradayPattern, frequencyMoodStats, lowScoreStreaks,
+} = useInsightsStats(moods)
 
-const thisWeekCount = computed(() => {
-  const now = new Date()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-  const from = toLocalDateStr(monday)
-  return moods.value.filter((m) => m.date >= from).length
-})
-
-const lastWeekAvg = computed(() => {
-  const now = new Date()
-  const thisMonday = new Date(now)
-  thisMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-  const lastMonday = new Date(thisMonday)
-  lastMonday.setDate(thisMonday.getDate() - 7)
-  const from = toLocalDateStr(lastMonday)
-  const to = toLocalDateStr(thisMonday)
-  const items = moods.value.filter((m) => m.date >= from && m.date < to)
-  if (items.length === 0) return 0
-  return items.reduce((s, m) => s + m.level, 0) / items.length
-})
-
-const lastWeekCount = computed(() => {
-  const now = new Date()
-  const thisMonday = new Date(now)
-  thisMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
-  const lastMonday = new Date(thisMonday)
-  lastMonday.setDate(thisMonday.getDate() - 7)
-  const from = toLocalDateStr(lastMonday)
-  const to = toLocalDateStr(thisMonday)
-  return moods.value.filter((m) => m.date >= from && m.date < to).length
-})
-
-// --- 曜日別平均 ---
-const dayOfWeekStats = computed(() => {
-  const sums: Record<number, { total: number; count: number }> = {}
-  for (let i = 0; i < 7; i++) sums[i] = { total: 0, count: 0 }
-  for (const m of moods.value) {
-    const d = new Date(m.date + 'T00:00:00')
-    const dow = d.getDay()
-    sums[dow].total += m.level
-    sums[dow].count++
-  }
-  return [1, 2, 3, 4, 5, 6, 0].map((dow) => ({
-    day: dayNames[dow],
-    avg: sums[dow].count > 0 ? sums[dow].total / sums[dow].count : 0,
-    dayColor: getDateColor((() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() - dow + 7) % 7)); return d })()),
-  }))
-})
-
-// --- 時間帯別平均 ---
-const timeSlotStats = computed(() => {
-  const slots = [
-    { label: '朝', from: 5, to: 10 },
-    { label: '昼', from: 10, to: 14 },
-    { label: '夕', from: 14, to: 18 },
-    { label: '夜', from: 18, to: 5 },
-  ]
-  return slots.map((slot) => {
-    const items = moods.value.filter((m) => {
-      if (!m.time) return false
-      const h = parseInt(m.time.split(':')[0])
-      if (slot.from < slot.to) return h >= slot.from && h < slot.to
-      return h >= slot.from || h < slot.to
-    })
-    const avg = items.length > 0 ? items.reduce((s, m) => s + m.level, 0) / items.length : 0
-    return { label: slot.label, avg }
-  })
-})
-
-// --- 場所ランキング ---
-const placeRanking = computed(() => {
-  const map = new Map<string, { total: number; count: number }>()
-  for (const m of moods.value) {
-    if (!m.place_name) continue
-    const entry = map.get(m.place_name) || { total: 0, count: 0 }
-    entry.total += m.level
-    entry.count++
-    map.set(m.place_name, entry)
-  }
-  return Array.from(map.entries())
-    .map(([name, { total, count }]) => ({ name, avg: total / count, count }))
-    .sort((a, b) => b.avg - a.avg)
-    .slice(0, 5)
-})
-
-// --- ストリーク ---
-const currentStreak = computed(() => {
-  const dates = new Set(moods.value.map((m) => m.date))
-  let streak = 0
-  const d = new Date()
-  // 今日記録がなければ昨日から数える
-  if (!dates.has(toLocalDateStr(d))) {
-    d.setDate(d.getDate() - 1)
-  }
-  while (dates.has(toLocalDateStr(d))) {
-    streak++
-    d.setDate(d.getDate() - 1)
-  }
-  return streak
-})
-
-const maxStreak = computed(() => {
-  const dates = [...new Set(moods.value.map((m) => m.date))].sort()
-  let max = 0
-  let current = 1
-  for (let i = 1; i < dates.length; i++) {
-    const prev = new Date(dates[i - 1] + 'T00:00:00')
-    const curr = new Date(dates[i] + 'T00:00:00')
-    const diff = (curr.getTime() - prev.getTime()) / 86400000
-    if (diff === 1) {
-      current++
-    } else {
-      max = Math.max(max, current)
-      current = 1
-    }
-  }
-  return Math.max(max, current)
-})
-
-const missedDays = computed(() => {
-  const dates = new Set(moods.value.map((m) => m.date))
-  const today = new Date()
-  let missed = 0
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    if (!dates.has(toLocalDateStr(d))) missed++
-  }
-  return missed
-})
-
-// --- 曜日×時間帯クロス分析 ---
-const timeSlotLabels = ['朝', '昼', '夕', '夜']
-const timeSlotDefs = [
-  { from: 5, to: 10 },
-  { from: 10, to: 14 },
-  { from: 14, to: 18 },
-  { from: 18, to: 5 },
-]
 const dayNamesOrdered = ['月', '火', '水', '木', '金', '土', '日']
-const dayOrderIndices = [1, 2, 3, 4, 5, 6, 0] // JS getDay() indices
-
-function getTimeSlotIndex(time: string | null | undefined): number {
-  if (!time) return -1
-  const h = parseInt(time.split(':')[0])
-  if (h >= 5 && h < 10) return 0
-  if (h >= 10 && h < 14) return 1
-  if (h >= 14 && h < 18) return 2
-  return 3 // 18-5
-}
-
-function heatmapBg(avg: number): string {
-  if (avg <= 0) return '#f5f5f7'
-  if (avg >= 4.5) return '#c8e6c9'
-  if (avg >= 3.5) return '#dcedc8'
-  if (avg >= 2.5) return '#fff9c4'
-  if (avg >= 1.5) return '#ffe0b2'
-  return '#ffcdd2'
-}
-
-const dayTimeMatrix = computed(() => {
-  // [dow][slotIdx] -> { total, count }
-  const grid: Record<number, Record<number, { total: number; count: number }>> = {}
-  for (const dow of dayOrderIndices) {
-    grid[dow] = {}
-    for (let s = 0; s < 5; s++) grid[dow][s] = { total: 0, count: 0 }
-  }
-  for (const m of moods.value) {
-    const slotIdx = getTimeSlotIndex(m.time)
-    if (slotIdx < 0) continue
-    const d = new Date(m.date + 'T00:00:00')
-    const dow = d.getDay()
-    grid[dow][slotIdx].total += m.level
-    grid[dow][slotIdx].count++
-  }
-  return dayOrderIndices.map((dow) => ({
-    day: dayNames[dow],
-    dayColor: getDateColor((() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() - dow + 7) % 7)); return d })()),
-    cells: [0, 1, 2, 3, 4].map((s) => {
-      const avg = grid[dow][s].count > 0 ? grid[dow][s].total / grid[dow][s].count : 0
-      return { avg, bg: heatmapBg(avg) }
-    }),
-  }))
-})
-
-// --- 場所×曜日分析 ---
-const placeDayMatrix = computed(() => {
-  // place -> dow -> { total, count }
-  const map = new Map<string, Record<number, { total: number; count: number }>>()
-  for (const m of moods.value) {
-    if (!m.place_name) continue
-    if (!map.has(m.place_name)) {
-      const rec: Record<number, { total: number; count: number }> = {}
-      for (const dow of dayOrderIndices) rec[dow] = { total: 0, count: 0 }
-      map.set(m.place_name, rec)
-    }
-    const d = new Date(m.date + 'T00:00:00')
-    const dow = d.getDay()
-    const entry = map.get(m.place_name)!
-    if (entry[dow]) {
-      entry[dow].total += m.level
-      entry[dow].count++
-    }
-  }
-  const all = Array.from(map.entries())
-    .map(([place, rec]) => ({
-      place,
-      totalCount: dayOrderIndices.reduce((s, dow) => s + rec[dow].count, 0),
-      rec,
-    }))
-    .sort((a, b) => b.totalCount - a.totalCount)
-  // 20件以上の場所のみ、なければ最多1件
-  const filtered = all.filter((p) => p.totalCount >= 20)
-  const places = filtered.length > 0 ? filtered.slice(0, 5) : all.length > 0 ? [all[0]] : []
-
-  return places.map(({ place, rec }) => ({
-    place,
-    cells: dayOrderIndices.map((dow) => {
-      const avg = rec[dow].count > 0 ? rec[dow].total / rec[dow].count : 0
-      return { avg, bg: heatmapBg(avg) }
-    }),
-  }))
-})
-
-// --- 気分の変動パターン ---
-const intradayPattern = computed(() => {
-  // For each day that has both morning (5-12) and evening (14-24) records, compute the difference
-  const dayMap = new Map<string, { morning: number[]; evening: number[] }>()
-  for (const m of moods.value) {
-    if (!m.time) continue
-    const h = parseInt(m.time.split(':')[0])
-    if (!dayMap.has(m.date)) dayMap.set(m.date, { morning: [], evening: [] })
-    const entry = dayMap.get(m.date)!
-    if (h >= 5 && h < 12) entry.morning.push(m.level)
-    else if (h >= 14) entry.evening.push(m.level)
-  }
-  let morningSum = 0, morningCount = 0
-  let eveningSum = 0, eveningCount = 0
-  let dayCount = 0
-  for (const [, entry] of dayMap) {
-    if (entry.morning.length > 0 && entry.evening.length > 0) {
-      dayCount++
-      const mAvg = entry.morning.reduce((s, v) => s + v, 0) / entry.morning.length
-      const eAvg = entry.evening.reduce((s, v) => s + v, 0) / entry.evening.length
-      morningSum += mAvg
-      morningCount++
-      eveningSum += eAvg
-      eveningCount++
-    }
-  }
-  const morningAvg = morningCount > 0 ? morningSum / morningCount : 0
-  const eveningAvg = eveningCount > 0 ? eveningSum / eveningCount : 0
-  const trend = morningAvg > 0 && eveningAvg > 0 ? eveningAvg - morningAvg : 0
-  return {
-    hasBoth: dayCount > 0,
-    morningAvg,
-    eveningAvg,
-    trend,
-    dayCount,
-  }
-})
-
-// --- 記録頻度と気分の関係 ---
-const frequencyMoodStats = computed(() => {
-  // Group by date, count records per day, then bucket
-  const dayMap = new Map<string, { total: number; count: number }>()
-  for (const m of moods.value) {
-    const entry = dayMap.get(m.date) || { total: 0, count: 0 }
-    entry.total += m.level
-    entry.count++
-    dayMap.set(m.date, entry)
-  }
-  const buckets = [
-    { label: '1件', min: 1, max: 1, totalLevel: 0, dayCount: 0 },
-    { label: '2件', min: 2, max: 2, totalLevel: 0, dayCount: 0 },
-    { label: '3件', min: 3, max: 3, totalLevel: 0, dayCount: 0 },
-    { label: '4件+', min: 4, max: Infinity, totalLevel: 0, dayCount: 0 },
-  ]
-  for (const [, entry] of dayMap) {
-    const bucket = buckets.find((b) => entry.count >= b.min && entry.count <= b.max)
-    if (bucket) {
-      bucket.totalLevel += entry.total / entry.count // average per day
-      bucket.dayCount++
-    }
-  }
-  return buckets.map((b) => ({
-    label: b.label,
-    avg: b.dayCount > 0 ? b.totalLevel / b.dayCount : 0,
-    dayCount: b.dayCount,
-  }))
-})
-
-// --- 連続低スコア検出 ---
-const lowScoreStreaks = computed(() => {
-  // Sort all moods by date+time, find 3+ consecutive with level <= 2
-  const sorted = [...moods.value].sort((a, b) => {
-    const cmp = a.date.localeCompare(b.date)
-    if (cmp !== 0) return cmp
-    return (a.time || '').localeCompare(b.time || '')
-  })
-
-  const streaks: { from: string; to: string; count: number; avg: number }[] = []
-  let current: typeof sorted = []
-
-  for (const m of sorted) {
-    if (m.level <= 2) {
-      current.push(m)
-    } else {
-      if (current.length >= 3) {
-        const avg = current.reduce((s, c) => s + c.level, 0) / current.length
-        streaks.push({
-          from: current[0].date,
-          to: current[current.length - 1].date,
-          count: current.length,
-          avg,
-        })
-      }
-      current = []
-    }
-  }
-  // Final check
-  if (current.length >= 3) {
-    const avg = current.reduce((s, c) => s + c.level, 0) / current.length
-    streaks.push({
-      from: current[0].date,
-      to: current[current.length - 1].date,
-      count: current.length,
-      avg,
-    })
-  }
-  return streaks
-})
 
 // --- 場所別履歴モーダル ---
 const placeHistoryName = ref<string | null>(null)
@@ -681,18 +348,9 @@ function closePlaceHistory() {
 
 function formatMoodDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
-  return `${d.getMonth() + 1}/${d.getDate()}(${dayNames[d.getDay()]})`
+  return `${d.getMonth() + 1}/${d.getDate()}(${DAY_NAMES[d.getDay()]})`
 }
 
-function moodEmoji(level: number): string {
-  const emojis: Record<number, string> = { 5: '😆', 4: '😊', 3: '😐', 2: '😣', 1: '😵' }
-  return emojis[level] ?? ''
-}
-
-function moodLabel(level: number): string {
-  const labels: Record<number, string> = { 5: '最高', 4: '良い', 3: '普通', 2: 'いまいち', 1: 'しんどい' }
-  return labels[level] ?? ''
-}
 
 function goToDayTimeline(dateStr: string) {
   closePlaceHistory()

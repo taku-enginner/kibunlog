@@ -21,7 +21,7 @@
           <div class="sheet-header">
             <div>
               <span class="sheet-title">{{ detailPlaceName }}</span>
-              <span class="sheet-avg" :style="{ color: moodColors[Math.round(detailAvg)] }">
+              <span class="sheet-avg" :style="{ color: moodLevelColor(Math.round(detailAvg)) }">
                 平均 {{ detailAvg.toFixed(1) }}
               </span>
             </div>
@@ -33,8 +33,8 @@
                 <span class="detail-date">
                   {{ m.date }}<span v-if="m.time"> {{ m.time }}</span>
                 </span>
-                <span class="detail-mood" :style="{ color: moodColors[m.level] }">
-                  {{ moodLabels[m.level] }}
+                <span class="detail-mood" :style="{ color: moodLevelColor(m.level) }">
+                  {{ moodEmoji(m.level) }} {{ moodLabel(m.level) }}
                 </span>
               </div>
               <p v-if="m.memo" class="detail-memo">{{ m.memo }}</p>
@@ -69,28 +69,41 @@ interface PlaceGroup {
   moods: Mood[]
 }
 
-const moodColors: Record<number, string> = {
-  5: '#1b5e20',
-  4: '#28a745',
-  3: '#ffc107',
-  2: '#dc3545',
-  1: '#491217',
-}
 
-const moodLabels: Record<number, string> = {
-  5: '😆 最高',
-  4: '😊 良い',
-  3: '😐 普通',
-  2: '😣 いまいち',
-  1: '😵 しんどい',
-}
-
+// マーカー用のくすみ色（低スコアはグレー系で表示）
 function avgColor(avg: number): string {
-  if (avg >= 4.5) return '#1b5e20'
-  if (avg >= 3.5) return '#28a745'
-  if (avg >= 2.5) return '#b0b0b0'
-  if (avg >= 1.5) return '#c8c8c8'
+  const { best, good, neutral, bad } = MOOD_THRESHOLDS
+  if (avg >= best) return '#1b5e20'
+  if (avg >= good) return '#28a745'
+  if (avg >= neutral) return '#b0b0b0'
+  if (avg >= bad) return '#c8c8c8'
   return '#d5d5d5'
+}
+
+function createMarkerEl(size: number, color: string, avgLevel: number, placeName: string) {
+  const el = document.createElement('div')
+  Object.assign(el.style, { display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' })
+
+  const dot = document.createElement('div')
+  Object.assign(dot.style, {
+    width: `${size}px`, height: `${size}px`, borderRadius: '50%',
+    backgroundColor: color, border: '3px solid #fff', boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', fontSize: '12px', fontWeight: '700',
+  })
+  dot.textContent = avgLevel.toFixed(1)
+
+  const label = document.createElement('div')
+  Object.assign(label.style, {
+    marginTop: '2px', fontSize: '11px', fontWeight: '600', color: '#333',
+    background: 'rgba(255,255,255,0.9)', padding: '1px 6px', borderRadius: '4px',
+    whiteSpace: 'nowrap', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis',
+  })
+  label.textContent = placeName
+
+  el.appendChild(dot)
+  el.appendChild(label)
+  return { el, dot, label }
 }
 
 const config = useRuntimeConfig()
@@ -119,7 +132,7 @@ function toggleFilter() {
 
 function applyFilter() {
   for (const entry of markerEntries) {
-    const visible = !filterHighOnly.value || entry.group.avgLevel >= 3.5
+    const visible = !filterHighOnly.value || entry.group.avgLevel >= 7
     entry.marker.map = visible ? mapInstance : null
   }
 }
@@ -217,43 +230,7 @@ async function initMap() {
     const color = avgColor(group.avgLevel)
     const size = Math.min(20 + group.count * 4, 48)
 
-    const el = document.createElement('div')
-    el.style.display = 'flex'
-    el.style.flexDirection = 'column'
-    el.style.alignItems = 'center'
-    el.style.cursor = 'pointer'
-
-    const dot = document.createElement('div')
-    dot.style.width = `${size}px`
-    dot.style.height = `${size}px`
-    dot.style.borderRadius = '50%'
-    dot.style.backgroundColor = color
-    dot.style.border = '3px solid #fff'
-    dot.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)'
-    dot.style.display = 'flex'
-    dot.style.alignItems = 'center'
-    dot.style.justifyContent = 'center'
-    dot.style.color = '#fff'
-    dot.style.fontSize = '12px'
-    dot.style.fontWeight = '700'
-    dot.textContent = group.avgLevel.toFixed(1)
-
-    const label = document.createElement('div')
-    label.style.marginTop = '2px'
-    label.style.fontSize = '11px'
-    label.style.fontWeight = '600'
-    label.style.color = '#333'
-    label.style.background = 'rgba(255,255,255,0.9)'
-    label.style.padding = '1px 6px'
-    label.style.borderRadius = '4px'
-    label.style.whiteSpace = 'nowrap'
-    label.style.maxWidth = '120px'
-    label.style.overflow = 'hidden'
-    label.style.textOverflow = 'ellipsis'
-    label.textContent = group.placeName
-
-    el.appendChild(dot)
-    el.appendChild(label)
+    const { el } = createMarkerEl(size, color, group.avgLevel, group.placeName)
 
     const marker = new AdvancedMarkerElement({
       map: mapInstance,

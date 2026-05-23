@@ -79,22 +79,6 @@ const emit = defineEmits<{
   changePlace: [data: { level: number | null; memo: string | null }]
 }>()
 
-const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
-  5: { emoji: '😆', label: '最高', bg: '#c8e6c9', color: '#1b5e20' },
-  4: { emoji: '😊', label: '良い', bg: '#d4edda', color: '#155724' },
-  3: { emoji: '😐', label: '普通', bg: '#fff3cd', color: '#856404' },
-  2: { emoji: '😣', label: 'いまいち', bg: '#f8d7da', color: '#721c24' },
-  1: { emoji: '😵', label: 'しんどい', bg: '#f5c6cb', color: '#491217' },
-}
-
-const moodOptions = [
-  { level: 5, ...moodConfig[5] },
-  { level: 4, ...moodConfig[4] },
-  { level: 3, ...moodConfig[3] },
-  { level: 2, ...moodConfig[2] },
-  { level: 1, ...moodConfig[1] },
-]
-
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()

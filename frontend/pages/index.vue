@@ -27,7 +27,7 @@
           <div v-for="d in weekData" :key="d.date" class="chart-col">
             <div
               class="chart-bar"
-              :style="{ height: `${(d.avg / 5) * 100}%`, background: barColor(d.avg) }"
+              :style="{ height: `${(d.avg / 10) * 100}%`, background: moodLevelColor(d.avg) }"
             ></div>
             <span class="chart-day">{{ d.dayLabel }}</span>
           </div>
@@ -97,16 +97,6 @@ const { getHeaders } = useAuth()
 const { show: showToast } = useToast()
 const { formatWithDay, getDateColor, toLocalDateStr } = useDate()
 
-const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
-  5: { emoji: '😆', label: '最高', bg: '#c8e6c9', color: '#1b5e20' },
-  4: { emoji: '😊', label: '良い', bg: '#d4edda', color: '#155724' },
-  3: { emoji: '😐', label: '普通', bg: '#fff3cd', color: '#856404' },
-  2: { emoji: '😣', label: 'いまいち', bg: '#f8d7da', color: '#721c24' },
-  1: { emoji: '😵', label: 'しんどい', bg: '#f5c6cb', color: '#491217' },
-}
-
-const dayNames = ['日', '月', '火', '水', '木', '金', '土']
-
 const today = new Date()
 const todayStr = toLocalDateStr(today)
 const todayLabel = formatWithDay(today)
@@ -136,21 +126,14 @@ const avgScore = computed(() => {
 
 const avgMoodConfig = computed(() => {
   const avg = parseFloat(avgScore.value)
-  if (avg >= 4.5) return moodConfig[5]
-  if (avg >= 3.5) return moodConfig[4]
-  if (avg >= 2.5) return moodConfig[3]
-  if (avg >= 1.5) return moodConfig[2]
-  if (avg > 0) return moodConfig[1]
+  if (avg >= 9) return moodConfig[10]
+  if (avg >= 7) return moodConfig[8]
+  if (avg >= 5) return moodConfig[6]
+  if (avg >= 3) return moodConfig[4]
+  if (avg > 0) return moodConfig[2]
   return { emoji: '📝', label: '', bg: '#e0e0e0', color: '#6e6e73' }
 })
 
-function barColor(avg: number): string {
-  if (avg >= 4.5) return '#1b5e20'
-  if (avg >= 3.5) return '#28a745'
-  if (avg >= 2.5) return '#ffc107'
-  if (avg >= 1.5) return '#dc3545'
-  return '#491217'
-}
 
 onMounted(async () => {
   // 直近7日分のデータ取得
@@ -183,9 +166,9 @@ onMounted(async () => {
       const levels = byDate.get(ds)
       if (levels && levels.length > 0) {
         const avg = levels.reduce((s, v) => s + v, 0) / levels.length
-        days.push({ date: ds, avg, dayLabel: dayNames[d.getDay()] })
+        days.push({ date: ds, avg, dayLabel: DAY_NAMES[d.getDay()] })
       } else {
-        days.push({ date: ds, avg: 0, dayLabel: dayNames[d.getDay()] })
+        days.push({ date: ds, avg: 0, dayLabel: DAY_NAMES[d.getDay()] })
       }
     }
     weekData.value = days

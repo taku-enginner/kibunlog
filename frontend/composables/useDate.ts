@@ -1,6 +1,6 @@
 import holiday_jp from '@holiday-jp/holiday_jp'
 
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
+export const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
 
 export function useDate() {
   function getDayName(date: Date): string {

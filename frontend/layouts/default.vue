@@ -1,6 +1,9 @@
 <template>
   <div class="app-container">
     <ToastMessage />
+    <header v-if="isLoggedIn" class="app-header">
+      <span class="app-header-title">kibunrogu</span>
+    </header>
     <main class="main-content">
       <slot />
     </main>
@@ -54,6 +57,24 @@ body {
 
 .main-content {
   /* flex, overflow, padding are in global.css */
+}
+
+.app-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  height: 44px;
+  padding-top: env(safe-area-inset-top);
+}
+
+.app-header-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1d1d1f;
+  letter-spacing: -0.3px;
 }
 
 .bottom-nav {
