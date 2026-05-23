@@ -141,6 +141,23 @@ Caddy経由でHTTPSアクセス。
 docker compose -f docker-compose.<mac|debian>.yml down
 ```
 
+## テストデータ投入
+
+ローカル検証用にテストデータを1コマンドで投入できる。
+
+```bash
+cd backend && DB_PORT=13306 ../.venv/bin/python scripts/seed.py
+```
+
+- テストユーザー `test@example.com` / `testpass` を自動作成（既存なら再利用）
+- 直近7日分、1日2-3件のMoodデータを投入
+
+既存データをクリアして再投入する場合:
+
+```bash
+cd backend && DB_PORT=13306 ../.venv/bin/python scripts/seed.py --clear
+```
+
 ## テスト
 
 ### バックエンド単体テスト（pytest + coverage.py）

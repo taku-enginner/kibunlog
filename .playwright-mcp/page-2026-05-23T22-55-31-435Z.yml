@@ -1,0 +1,12 @@
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - heading "きぶんグラフ" [level=1] [ref=e6]
+    - paragraph [ref=e7]: ログイン
+    - generic [ref=e8]:
+      - textbox "ユーザー名" [ref=e9]
+      - generic [ref=e10]:
+        - textbox "パスワード" [ref=e11]
+        - button [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+      - button "ログイン" [ref=e16] [cursor=pointer]
+    - button "新規登録はこちら" [ref=e17] [cursor=pointer]
