@@ -1,0 +1,28 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]: kibunrogu
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - heading "きぶんグラフ" [level=1] [ref=e8]
+      - generic [ref=e9]:
+        - button "1日" [active] [ref=e10] [cursor=pointer]
+        - button "1週間" [ref=e11] [cursor=pointer]
+        - button "1ヶ月" [ref=e12] [cursor=pointer]
+      - img [ref=e37]
+  - navigation [ref=e20]:
+    - link "記録" [ref=e21] [cursor=pointer]:
+      - /url: /
+      - img [ref=e22]
+      - generic [ref=e25]: 記録
+    - link "グラフ" [ref=e26] [cursor=pointer]:
+      - /url: /graph
+      - img [ref=e27]
+      - generic [ref=e28]: グラフ
+    - link "履歴" [ref=e29] [cursor=pointer]:
+      - /url: /timeline
+      - img [ref=e30]
+      - generic [ref=e31]: 履歴
+    - link "+α" [ref=e32] [cursor=pointer]:
+      - /url: /insights
+      - img [ref=e33]
+      - generic [ref=e35]: +α
