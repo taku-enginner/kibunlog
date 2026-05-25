@@ -95,8 +95,8 @@ async function fetchMoods() {
   try {
     const today = new Date()
     const from = new Date(today)
-    // 1日モード: 昨日、1週間モード: 前週のデータも取得（背景表示用）
-    const extraDays = selectedRange.value === '1d' ? 1 : selectedRange.value === '1w' ? 7 : 0
+    // 1日モード: 昨日・一昨日、1週間モード: 前週のデータも取得（背景表示用）
+    const extraDays = selectedRange.value === '1d' ? 2 : selectedRange.value === '1w' ? 7 : 0
     from.setDate(from.getDate() - (currentDays.value - 1) - extraDays)
     const result = await $fetch<Mood[]>(`${apiBase}/moods`, {
       params: {
@@ -165,20 +165,23 @@ const sortedMoods1d = computed(() => {
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
 })
 
-// 1日モード: 昨日のエントリ（背景表示用）
-const yesterdayMoods1d = computed(() => {
+// 1日モード: 過去N日前のエントリ（背景表示用）
+function pastDayMoods1d(daysAgo: number) {
   if (!is1dMode.value) return []
-  const yesterday = new Date()
-  yesterday.setDate(yesterday.getDate() - 1)
-  const yesterdayStr = toLocalDateStr(yesterday)
+  const target = new Date()
+  target.setDate(target.getDate() - daysAgo)
+  const targetStr = toLocalDateStr(target)
   return [...moods.value]
-    .filter((m) => m.date === yesterdayStr)
+    .filter((m) => m.date === targetStr)
     .map((m) => ({
       ...m,
       sortKey: `${m.date} ${m.time ?? '00:00'}`,
     }))
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-})
+}
+
+const yesterdayMoods1d = computed(() => pastDayMoods1d(1))
+const dayBeforeYesterdayMoods1d = computed(() => pastDayMoods1d(2))
 
 // 移動平均（windowサイズ分の平均。端はそのまま）
 const movingAvgWindow = computed(() => selectedRange.value === '1m' ? 7 : 3)
@@ -308,7 +311,29 @@ const chartData = computed<ChartData<'line'>>(() => {
   if (is1dMode.value) {
     const entries = sortedMoods1d.value
     const yesterdayEntries = yesterdayMoods1d.value
+    const dayBeforeEntries = dayBeforeYesterdayMoods1d.value
     const datasets: any[] = []
+
+    // 一昨日のデータ（より薄く背景に表示）
+    if (dayBeforeEntries.length > 0) {
+      datasets.push({
+        label: '一昨日',
+        data: dayBeforeEntries.map((m) => ({
+          x: new Date(`${todayStr.value}T${m.time ?? '00:00'}:00`).getTime(),
+          y: m.level,
+        })),
+        borderColor: '#007aff1a',
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointRadius: 3,
+        pointBackgroundColor: '#007aff1a',
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 0,
+        borderDash: [2, 4],
+        spanGaps: true,
+        fill: false,
+      })
+    }
 
     // 昨日のデータ（薄く背景に表示）
     if (yesterdayEntries.length > 0) {
