@@ -3,6 +3,9 @@
 Usage:
     cd backend && python scripts/seed.py          # デフォルト: 追加モード
     cd backend && python scripts/seed.py --clear   # 既存データをクリアして再投入
+
+`seed_demo_user(db, user)` 関数は main.py の POST /auth/demo から呼ばれ、
+新しく作成したデモアカウントに 14 日分の Mood + 5 件の Place を投入する。
 """
 
 import argparse
@@ -14,7 +17,7 @@ sys.path.insert(0, ".")
 
 from auth import hash_password
 from database import SessionLocal, engine
-from models import Base, Mood, User
+from models import Base, Mood, Place, User
 
 SEED_USER = "test@example.com"
 SEED_PASSWORD = "testpass"
@@ -38,6 +41,15 @@ MEMOS = [
 PLACE_TAGS = ["自宅", "オフィス", "カフェ", "公園", "ジム", None]
 
 TIMES = ["07:30", "09:00", "12:00", "14:30", "17:00", "19:30", "21:00", "23:00"]
+
+# デモアカウントに事前投入する Place。座標は東京駅周辺の架空値。
+DEMO_PLACES = [
+    {"name": "自宅", "latitude": 35.681236, "longitude": 139.767125},
+    {"name": "オフィス", "latitude": 35.689487, "longitude": 139.691711},
+    {"name": "近所のカフェ", "latitude": 35.676197, "longitude": 139.650311},
+    {"name": "井の頭公園", "latitude": 35.700318, "longitude": 139.570886},
+    {"name": "ジム", "latitude": 35.658034, "longitude": 139.701636},
+]
 
 
 def get_or_create_user(db):
@@ -73,6 +85,46 @@ def generate_moods(user_id: int, days: int = 30) -> list[Mood]:
                 )
             )
     return moods
+
+
+def seed_demo_user(db, user, days: int = 14) -> None:
+    """デモアカウント (user) に Place 5件 + 直近 days 日分の Mood を投入する。
+
+    POST /auth/demo から呼ばれる前提で、commit は呼び出し側で行う。
+    """
+    places = [
+        Place(
+            user_id=user.id,
+            name=p["name"],
+            latitude=p["latitude"],
+            longitude=p["longitude"],
+        )
+        for p in DEMO_PLACES
+    ]
+    db.add_all(places)
+    db.flush()  # place.id を確定させる
+
+    today = date.today()
+    moods: list[Mood] = []
+    for i in range(days):
+        d = today - timedelta(days=days - 1 - i)
+        date_str = d.isoformat()
+        count = random.randint(2, 3)
+        times = sorted(random.sample(TIMES, count))
+        for t in times:
+            place = random.choice(places + [None, None])  # 1/3 は場所なし
+            moods.append(
+                Mood(
+                    user_id=user.id,
+                    date=date_str,
+                    time=t,
+                    level=random.randint(3, 9),  # デモなので極端値は避ける
+                    memo=random.choice(MEMOS),
+                    place_id=place.id if place else None,
+                    place_tag=None if place else random.choice(PLACE_TAGS),
+                )
+            )
+    db.add_all(moods)
 
 
 def main():

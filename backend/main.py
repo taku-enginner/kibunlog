@@ -1,4 +1,6 @@
 import io
+import secrets
+import uuid
 import zipfile
 from pathlib import Path
 
@@ -17,6 +19,11 @@ from auth import (
 from database import Base, engine, get_db
 from image_utils import UPLOAD_BASE, delete_image_files, process_upload, rotate_image
 from models import HeatmapEvent, Mood, Place, User
+from scripts.seed import seed_demo_user
+
+# 画像アップロード制限。デモアカウント乱用 + 容量攻撃を抑える。
+MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 1 ファイル 5MB
+MAX_IMAGES_PER_USER = 50  # 1 ユーザー累計 50 枚
 
 Base.metadata.create_all(bind=engine)
 
@@ -66,6 +73,29 @@ def login(body: AuthIn, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
+    token = create_access_token(user.id)
+    return AuthOut(token=token, username=user.username)
+
+
+@app.post("/auth/demo", response_model=AuthOut)
+def create_demo_user(db: Session = Depends(get_db)):
+    """ワンクリックで使い捨てデモアカウントを発行して、サンプルデータを焼いた上で JWT を返す。
+
+    - username は `demo-{uuid8}@example.com` 形式 (collision 実質ゼロ)
+    - password はランダム 32 byte。誰も生パスを知らない状態にする (login 経路を実質塞ぐ)
+    - is_demo=True を立てて、画像アップロード API は 403、24h で systemd timer により削除される
+    """
+    username = f"demo-{uuid.uuid4().hex[:8]}@example.com"
+    user = User(
+        username=username,
+        password_hash=hash_password(secrets.token_hex(32)),
+        is_demo=True,
+    )
+    db.add(user)
+    db.flush()
+    seed_demo_user(db, user)
+    db.commit()
+    db.refresh(user)
     token = create_access_token(user.id)
     return AuthOut(token=token, username=user.username)
 
@@ -222,15 +252,40 @@ def upload_mood_image(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # デモアカウントは画像アップ不可。悪用 (NSFW / 著作権侵害物の踏み台化) を遮断するため。
+    if user.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo accounts cannot upload images. Sign up to try this feature.",
+        )
+
     mood = db.query(Mood).filter(Mood.id == mood_id, Mood.user_id == user.id).first()
     if not mood:
         raise HTTPException(status_code=404, detail="Mood not found")
 
-    # Delete old image if exists
-    if mood.image_path:
-        delete_image_files(user.id, mood.image_path)
+    # 1 ユーザーあたりの累計枚数制限。新規アップ前の状態でカウントする (上書きは枠を消費しない)。
+    if not mood.image_path:
+        current_count = (
+            db.query(Mood)
+            .filter(Mood.user_id == user.id, Mood.image_path.isnot(None))
+            .count()
+        )
+        if current_count >= MAX_IMAGES_PER_USER:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Image quota exceeded ({MAX_IMAGES_PER_USER} max).",
+            )
 
     file_bytes = file.file.read()
+    if len(file_bytes) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Image too large (max {MAX_IMAGE_BYTES // 1024 // 1024}MB).",
+        )
+
+    # Delete old image if exists (容量チェック通過後に削除する)
+    if mood.image_path:
+        delete_image_files(user.id, mood.image_path)
 
     # Attach place_name for filename generation
     place = db.query(Place).filter(Place.id == mood.place_id).first() if mood.place_id else None

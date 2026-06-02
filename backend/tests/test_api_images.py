@@ -52,6 +52,47 @@ class TestMoodImageUpload:
         assert resp.status_code == 200
         assert resp.json()["has_image"] is True
 
+    def test_upload_too_large(self, client, auth_header, tmp_path, monkeypatch):
+        import image_utils
+
+        monkeypatch.setattr(image_utils, "UPLOAD_BASE", tmp_path)
+
+        resp = client.post("/moods", json={"date": "2025-01-01", "level": 3}, headers=auth_header)
+        mood_id = resp.json()["id"]
+
+        # 5MB + 1 byte
+        big = b"x" * (5 * 1024 * 1024 + 1)
+        resp = client.post(
+            f"/moods/{mood_id}/image",
+            files={"file": ("big.png", big, "image/png")},
+            headers=auth_header,
+        )
+        assert resp.status_code == 413
+
+    def test_upload_quota_exceeded(self, client, auth_header, tmp_path, monkeypatch, db_session):
+        import image_utils
+        from models import Mood, User
+
+        monkeypatch.setattr(image_utils, "UPLOAD_BASE", tmp_path)
+
+        # 既に 50 件分の image_path を埋めた Mood を直接 DB に書き込む (アップロード処理は通さない)
+        user = db_session.query(User).filter(User.username == "testuser").first()
+        for i in range(50):
+            db_session.add(
+                Mood(user_id=user.id, date="2025-01-01", level=5, image_path=f"x{i}.webp")
+            )
+        db_session.commit()
+
+        # 新規 mood に対するアップロードは枠超で 409
+        resp = client.post("/moods", json={"date": "2025-02-01", "level": 5}, headers=auth_header)
+        mood_id = resp.json()["id"]
+        resp = client.post(
+            f"/moods/{mood_id}/image",
+            files={"file": ("test.png", _make_image_bytes(), "image/png")},
+            headers=auth_header,
+        )
+        assert resp.status_code == 409
+
     def test_upload_image_not_found(self, client, auth_header):
         img_bytes = _make_image_bytes()
         resp = client.post(
