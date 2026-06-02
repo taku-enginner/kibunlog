@@ -217,25 +217,16 @@
     </Teleport>
 
     <Teleport to="body">
-      <PlaceSelector
-        v-if="showPlaceSelector"
-        @select="onPlaceSelected"
-        @close="showPlaceSelector = false"
-      />
-    </Teleport>
-
-    <Teleport to="body">
       <MoodForm
         v-if="showMoodForm"
-        :place-name="selectedPlace?.name"
-        :initial-level="pendingLevel ?? editingMood?.level"
-        :initial-memo="pendingMemo ?? editingMood?.memo"
+        :initial-level="editingMood?.level"
+        :initial-memo="editingMood?.memo"
+        :initial-place-id="editingMood?.place_id"
         :initial-has-image="editingMood?.has_image"
         :mood-id="editingMood?.id"
         :saving="saving"
         @submit="onMoodSubmit"
         @close="cancelForm"
-        @change-place="onChangePlace"
       />
     </Teleport>
   </div>
@@ -253,13 +244,6 @@ interface Mood {
   place_id?: number | null
   place_name?: string | null
   has_image?: boolean
-}
-
-interface Place {
-  id: number
-  name: string
-  latitude: number | null
-  longitude: number | null
 }
 
 const config = useRuntimeConfig()
@@ -312,12 +296,8 @@ const downloading = ref(false)
 const hasAnyImage = computed(() => allMoods.value.some((m) => m.has_image))
 
 // Edit state
-const showPlaceSelector = ref(false)
 const showMoodForm = ref(false)
-const selectedPlace = ref<Place | null>(null)
 const editingMood = ref<Mood | null>(null)
-const pendingLevel = ref<number | null>(null)
-const pendingMemo = ref<string | null>(null)
 
 const todayMoods = computed(() => allMoods.value.filter((m) => m.date === todayStr))
 
@@ -358,37 +338,15 @@ onMounted(async () => {
 function startEdit(mood: Mood) {
   if (deleteMode.value) return
   editingMood.value = mood
-  selectedPlace.value = mood.place_id
-    ? { id: mood.place_id, name: mood.place_name || '', latitude: null, longitude: null }
-    : null
-  showMoodForm.value = true
-}
-
-function onPlaceSelected(place: Place) {
-  selectedPlace.value = place
-  showPlaceSelector.value = false
-  if (editingMood.value) {
-    editingMood.value = { ...editingMood.value, place_id: place.id, place_name: place.name }
-  }
   showMoodForm.value = true
 }
 
 function cancelForm() {
   showMoodForm.value = false
   editingMood.value = null
-  selectedPlace.value = null
-  pendingLevel.value = null
-  pendingMemo.value = null
 }
 
-function onChangePlace(data: { level: number | null; memo: string | null }) {
-  pendingLevel.value = data.level
-  pendingMemo.value = data.memo
-  showMoodForm.value = false
-  showPlaceSelector.value = true
-}
-
-async function onMoodSubmit(data: { level: number; memo: string | null; image: File | null }) {
+async function onMoodSubmit(data: { level: number; memo: string | null; placeId: number | null; image: File | null }) {
   saving.value = true
   try {
     if (editingMood.value) {
@@ -399,7 +357,7 @@ async function onMoodSubmit(data: { level: number; memo: string | null; image: F
           time: editingMood.value.time,
           level: data.level,
           memo: data.memo,
-          place_id: selectedPlace.value?.id ?? editingMood.value.place_id,
+          place_id: data.placeId,
         },
         headers: getHeaders(),
       })

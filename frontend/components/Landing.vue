@@ -64,7 +64,6 @@
             <span class="divider">·</span>
             <NuxtLink to="/login" class="link-button">ログイン</NuxtLink>
           </div>
-          <p class="foot-text">転職活動用のポートフォリオです</p>
         </div>
       </section>
     </div>
@@ -330,13 +329,6 @@ async function startDemo() {
 }
 
 .divider {
-  color: #c7c7cc;
-}
-
-.foot-text {
-  margin-top: auto;
-  padding-top: 24px;
-  font-size: 11px;
   color: #c7c7cc;
 }
 
