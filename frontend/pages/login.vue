@@ -42,10 +42,12 @@ const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { setAuth } = useAuth()
 const router = useRouter()
+const route = useRoute()
 
 const username = ref('')
 const password = ref('')
-const isRegister = ref(false)
+// ランディングの「新規登録」ボタンから /login?mode=register で来た場合は登録モードで開く
+const isRegister = ref(route.query.mode === 'register')
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')

@@ -1,5 +1,6 @@
 <template>
-  <div class="record-page">
+  <Landing v-if="!isLoggedIn" />
+  <div v-else class="record-page">
     <h1 class="page-title">きぶんログ</h1>
     <p class="today-date" :style="{ color: todayColor }">{{ todayLabel }}</p>
 
@@ -95,7 +96,7 @@ interface Place {
 
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
-const { getHeaders } = useAuth()
+const { getHeaders, isLoggedIn } = useAuth()
 const { show: showToast } = useToast()
 const { formatWithDay, getDateColor, toLocalDateStr } = useDate()
 
@@ -138,6 +139,11 @@ const avgMoodConfig = computed(() => {
 
 
 onMounted(async () => {
+  // 未ログイン時はランディングを出すだけなので API リクエストを送らない
+  if (!isLoggedIn.value) {
+    loading.value = false
+    return
+  }
   // 直近7日分のデータ取得
   const weekAgo = new Date(today)
   weekAgo.setDate(weekAgo.getDate() - 6)
