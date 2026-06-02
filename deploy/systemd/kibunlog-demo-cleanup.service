@@ -1,0 +1,13 @@
+[Unit]
+Description=Delete expired kibunlog demo accounts
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/tak/kibunrogu
+ExecStart=/usr/bin/docker compose -f docker-compose.debian.yml exec -T backend python scripts/cleanup_demo.py
+User=tak
+
+[Install]
+WantedBy=multi-user.target

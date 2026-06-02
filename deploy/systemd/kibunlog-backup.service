@@ -1,0 +1,13 @@
+[Unit]
+Description=kibunlog daily local backup (DB + uploads)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/tak/kibunrogu
+ExecStart=/home/tak/kibunrogu/deploy/scripts/backup.sh
+User=tak
+
+[Install]
+WantedBy=multi-user.target

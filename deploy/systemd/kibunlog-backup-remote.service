@@ -1,0 +1,14 @@
+[Unit]
+Description=kibunlog weekly remote backup sync (rclone -> R2)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/tak/kibunrogu
+EnvironmentFile=-/home/tak/kibunrogu/.env
+ExecStart=/home/tak/kibunrogu/deploy/scripts/backup-remote.sh
+User=tak
+
+[Install]
+WantedBy=multi-user.target

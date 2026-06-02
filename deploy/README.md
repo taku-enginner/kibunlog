@@ -130,10 +130,131 @@ sudo journalctl -u cloudflared -f
 
 ---
 
-## Phase 2 以降の手順 (TODO)
+## Phase 2 手順
 
-Phase 2: backend の is_demo / POST /auth/demo / 画像制限 + frontend のランディング/オンボーディング → 実装完了後に追記
-Phase 3: backup.sh + systemd timer + R2 同期 + デモ掃除 timer → 実装完了後に追記
+Phase 2 で追加した backend / frontend の機能はコードがリポジトリに入っていれば自動で有効になる。
+ただし backend の `users` テーブルに `is_demo` カラムを追加する migration が必要:
+
+```bash
+cd /home/tak/kibunrogu
+git pull
+docker compose -f docker-compose.debian.yml up -d --build
+docker compose -f docker-compose.debian.yml exec backend python migrate_add_is_demo.py
+```
+
+動作確認:
+
+```bash
+curl -sX POST https://kibunlog.takakusagi.dev/auth/demo | jq
+# -> {"token": "...", "username": "demo-xxxxxxxx@example.com"}
+```
+
+ブラウザで開けば未ログイン時はランディング画面、「デモを見る」でサンプルデータ入り
+アカウントに即ログイン、画像アップは 403。
+
+## Phase 3 手順 (バックアップ + デモ掃除の systemd)
+
+### 3.1 ホスト側パッケージの導入
+
+```bash
+sudo apt update
+sudo apt install -y gnupg            # backup を gpg 暗号化するため
+curl https://rclone.org/install.sh | sudo bash   # R2 同期用 (公式 install スクリプト)
+```
+
+### 3.2 バックアップ暗号化のパスフレーズ設定 (任意だが推奨)
+
+```bash
+$EDITOR /home/tak/kibunrogu/.env
+# 以下を追記。サーバ単独乗っ取り時にもバックアップが読めないようにする
+# BACKUP_PASSPHRASE='強めのランダム文字列(例: openssl rand -hex 32)'
+```
+
+設定なしでも動くが、その場合は `.gz` 平文のままローカル/R2 に置かれる。
+
+### 3.3 systemd unit を配置
+
+```bash
+sudo cp /home/tak/kibunrogu/deploy/systemd/*.service /etc/systemd/system/
+sudo cp /home/tak/kibunrogu/deploy/systemd/*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# デモ掃除 (毎時)
+sudo systemctl enable --now kibunlog-demo-cleanup.timer
+
+# ローカル日次バックアップ (毎日 03:00)
+sudo systemctl enable --now kibunlog-backup.timer
+```
+
+R2 同期 timer は 3.4 で rclone を設定してから有効化する。
+
+確認:
+
+```bash
+systemctl list-timers --no-pager | grep kibunlog
+sudo systemctl status kibunlog-demo-cleanup.timer
+```
+
+手動で1回走らせてみる:
+
+```bash
+sudo systemctl start kibunlog-demo-cleanup.service
+sudo journalctl -u kibunlog-demo-cleanup.service --no-pager -n 20
+
+sudo systemctl start kibunlog-backup.service
+sudo journalctl -u kibunlog-backup.service --no-pager -n 30
+ls -la /home/tak/backups/kibunlog/
+```
+
+### 3.4 Cloudflare R2 を rclone リモートとして設定
+
+Cloudflare ダッシュボード → R2 → Manage R2 API Tokens → トークン発行 (Read & Write)。
+バケット `kibunlog-backups` を作成 (R2 → Create bucket)。
+
+```bash
+rclone config
+# n) New remote
+# name>  r2
+# Storage>  s3
+# provider>  Cloudflare
+# env_auth>  false
+# access_key_id>  <R2 トークンの Access Key>
+# secret_access_key>  <R2 トークンの Secret>
+# region>  auto
+# endpoint>  https://<account-id>.r2.cloudflarestorage.com
+# その他はデフォルト
+# y) Yes this is OK -> q) Quit config
+```
+
+接続テスト:
+
+```bash
+rclone lsd r2:
+# kibunlog-backups が見えれば OK
+```
+
+R2 同期 timer を有効化:
+
+```bash
+sudo systemctl enable --now kibunlog-backup-remote.timer
+sudo systemctl start kibunlog-backup-remote.service   # 即時1回実行
+rclone ls r2:kibunlog-backups/
+```
+
+### 3.5 リストアテスト (1回必ずやる)
+
+「バックアップは取れているが復元方法が分からない」事故を防ぐため、初回は手動で復元テストを走らせる。
+
+```bash
+/home/tak/kibunrogu/deploy/scripts/restore-test.sh
+# 復元先は kibunrogu_test という別 DB。本番 (kibunrogu) は触らない
+# 各テーブルの行数が表示されれば OK
+```
+
+確認後、テスト DB は手動で DROP するか、放置でも害なし (再実行時に DROP IF EXISTS される)。
+
+## Phase 4 以降の手順 (TODO)
+
 Phase 4: gitleaks → LICENSE → README → rename → public → 実装完了後に追記
 
 ---
