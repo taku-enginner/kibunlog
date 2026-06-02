@@ -293,39 +293,46 @@ function submit() {
 }
 
 .buttons-row {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
   margin-bottom: 16px;
 }
 
 .mood-btn {
-  width: 60px;
-  height: 74px;
+  width: 100%;
+  height: 68px;
   border: 2px solid #e0e0e0;
-  border-radius: 16px;
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
+  padding: 4px 2px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
+  font-family: inherit;
 }
 
 .mood-btn.selected {
   border-color: #007aff;
   box-shadow: 0 3px 12px rgba(0, 122, 255, 0.3);
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
 
 .btn-emoji {
-  font-size: 24px;
+  font-size: 22px;
+  line-height: 1;
 }
 
 .btn-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .section {

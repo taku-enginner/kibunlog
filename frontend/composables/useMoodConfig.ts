@@ -1,16 +1,16 @@
 export const MOOD_THRESHOLDS = { best: 9, good: 7, neutral: 5, bad: 3 } as const
 
 export const moodConfig: Record<number, { emoji: string; label: string; bg: string; color: string }> = {
-  10: { emoji: '😆', label: '最高', bg: '#c8e6c9', color: '#1b5e20' },
-  9:  { emoji: '😆', label: '最高', bg: '#c8e6c9', color: '#1b5e20' },
-  8:  { emoji: '😊', label: '良い', bg: '#d4edda', color: '#155724' },
-  7:  { emoji: '😊', label: '良い', bg: '#d4edda', color: '#155724' },
-  6:  { emoji: '😐', label: '普通', bg: '#fff3cd', color: '#856404' },
-  5:  { emoji: '😐', label: '普通', bg: '#fff3cd', color: '#856404' },
-  4:  { emoji: '😣', label: 'いまいち', bg: '#f8d7da', color: '#721c24' },
-  3:  { emoji: '😣', label: 'いまいち', bg: '#f8d7da', color: '#721c24' },
-  2:  { emoji: '😵', label: 'しんどい', bg: '#f5c6cb', color: '#491217' },
-  1:  { emoji: '😵', label: 'しんどい', bg: '#f5c6cb', color: '#491217' },
+  10: { emoji: '🤩', label: '最高',       bg: '#a5d6a7', color: '#1b5e20' },
+  9:  { emoji: '😄', label: 'すごく良い',  bg: '#c8e6c9', color: '#2e7d32' },
+  8:  { emoji: '😊', label: '良い',       bg: '#d4edda', color: '#155724' },
+  7:  { emoji: '🙂', label: 'まあ良い',    bg: '#e8f5e9', color: '#388e3c' },
+  6:  { emoji: '😐', label: '普通',       bg: '#fff9c4', color: '#856404' },
+  5:  { emoji: '😶', label: '微妙',       bg: '#fff3cd', color: '#946d00' },
+  4:  { emoji: '😟', label: 'ちょい辛',    bg: '#ffe0b2', color: '#c84a00' },
+  3:  { emoji: '😣', label: 'いまいち',    bg: '#f8d7da', color: '#721c24' },
+  2:  { emoji: '😖', label: 'しんどい',    bg: '#f5c6cb', color: '#491217' },
+  1:  { emoji: '😵', label: '限界',       bg: '#ef9a9a', color: '#311111' },
 }
 
 export const moodOptions = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(level => ({ level, ...moodConfig[level] }))

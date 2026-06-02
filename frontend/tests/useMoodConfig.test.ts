@@ -24,14 +24,17 @@ describe('moodConfig', () => {
     }
   })
 
-  it('level 10 and 9 should be 最高', () => {
-    expect(moodConfig[10].label).toBe('最高')
-    expect(moodConfig[9].label).toBe('最高')
+  it('each of 10 levels should have a unique label and emoji', () => {
+    // 入力フォーム上で 10 段階を区別して見せるため、label / emoji は全エントリ unique
+    const labels = new Set(Object.values(moodConfig).map((c) => c.label))
+    const emojis = new Set(Object.values(moodConfig).map((c) => c.emoji))
+    expect(labels.size).toBe(10)
+    expect(emojis.size).toBe(10)
   })
 
-  it('level 1 and 2 should be しんどい', () => {
-    expect(moodConfig[1].label).toBe('しんどい')
-    expect(moodConfig[2].label).toBe('しんどい')
+  it('extreme levels keep canonical labels', () => {
+    expect(moodConfig[10].label).toBe('最高')
+    expect(moodConfig[1].label).toBe('限界')
   })
 })
 
