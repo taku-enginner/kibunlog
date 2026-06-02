@@ -5,9 +5,9 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/tak/kibunrogu
-EnvironmentFile=-/home/tak/kibunrogu/.env
-ExecStart=/home/tak/kibunrogu/deploy/scripts/backup-remote.sh
+WorkingDirectory=/home/tak/kibunlog
+EnvironmentFile=-/home/tak/kibunlog/.env
+ExecStart=/home/tak/kibunlog/deploy/scripts/backup-remote.sh
 User=tak
 
 [Install]

@@ -5,8 +5,8 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/tak/kibunrogu
-ExecStart=/home/tak/kibunrogu/deploy/scripts/backup.sh
+WorkingDirectory=/home/tak/kibunlog
+ExecStart=/home/tak/kibunlog/deploy/scripts/backup.sh
 User=tak
 
 [Install]

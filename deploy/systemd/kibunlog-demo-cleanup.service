@@ -5,7 +5,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/home/tak/kibunrogu
+WorkingDirectory=/home/tak/kibunlog
 ExecStart=/usr/bin/docker compose -f docker-compose.debian.yml exec -T backend python scripts/cleanup_demo.py
 User=tak
 

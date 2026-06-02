@@ -4,7 +4,7 @@
 # systemd timer (kibunlog-backup.timer) から日次で呼ばれる。
 set -euo pipefail
 
-REPO_DIR=/home/tak/kibunrogu
+REPO_DIR=/home/tak/kibunlog
 BACKUP_DIR=/home/tak/backups/kibunlog
 COMPOSE_FILE="$REPO_DIR/docker-compose.debian.yml"
 TS=$(date +%Y%m%d_%H%M%S)

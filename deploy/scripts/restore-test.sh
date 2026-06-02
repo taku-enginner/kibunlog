@@ -4,7 +4,7 @@
 # 既存の kibunrogu_test があれば一度 DROP するので、何度走らせても安全。
 set -euo pipefail
 
-REPO_DIR=/home/tak/kibunrogu
+REPO_DIR=/home/tak/kibunlog
 BACKUP_DIR=/home/tak/backups/kibunlog
 COMPOSE_FILE="$REPO_DIR/docker-compose.debian.yml"
 TEST_DB=kibunrogu_test

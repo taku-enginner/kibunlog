@@ -37,7 +37,7 @@ wedding_invitation と同じ Debian サーバーに相乗りする前提。
 
 ```bash
 ssh deploy@<tailscale-name>
-cd /srv/kibunrogu      # ※ Phase 4 で /srv/kibunlog に rename する予定
+cd /home/tak/kibunlog
 cp env.example .env
 $EDITOR .env
 ```
@@ -46,7 +46,6 @@ $EDITOR .env
 
 | 変数 | 値 |
 |------|----|
-| `GOOGLE_MAPS_API_KEY` | 既存と同じ |
 | `PUBLIC_DOMAIN` | `kibunlog.takakusagi.dev` |
 | `COMPOSE_PROJECT_NAME` | `kibunrogu` (固定。既存 volume を引き継ぐため) |
 
@@ -106,7 +105,7 @@ Free プランでも Rate Limiting 1ルールは無料、Pro 以上は複数可�
 ### 5. kibunlog をビルド & 起動
 
 ```bash
-cd /srv/kibunrogu
+cd /home/tak/kibunlog
 git pull
 docker compose -f docker-compose.debian.yml up -d --build
 ```
@@ -136,7 +135,7 @@ Phase 2 で追加した backend / frontend の機能はコードがリポジト�
 ただし backend の `users` テーブルに `is_demo` カラムを追加する migration が必要:
 
 ```bash
-cd /home/tak/kibunrogu
+cd /home/tak/kibunlog
 git pull
 docker compose -f docker-compose.debian.yml up -d --build
 docker compose -f docker-compose.debian.yml exec backend python migrate_add_is_demo.py
@@ -165,7 +164,7 @@ curl https://rclone.org/install.sh | sudo bash   # R2 同期用 (公式 install 
 ### 3.2 バックアップ暗号化のパスフレーズ設定 (任意だが推奨)
 
 ```bash
-$EDITOR /home/tak/kibunrogu/.env
+$EDITOR /home/tak/kibunlog/.env
 # 以下を追記。サーバ単独乗っ取り時にもバックアップが読めないようにする
 # BACKUP_PASSPHRASE='強めのランダム文字列(例: openssl rand -hex 32)'
 ```
@@ -175,8 +174,8 @@ $EDITOR /home/tak/kibunrogu/.env
 ### 3.3 systemd unit を配置
 
 ```bash
-sudo cp /home/tak/kibunrogu/deploy/systemd/*.service /etc/systemd/system/
-sudo cp /home/tak/kibunrogu/deploy/systemd/*.timer /etc/systemd/system/
+sudo cp /home/tak/kibunlog/deploy/systemd/*.service /etc/systemd/system/
+sudo cp /home/tak/kibunlog/deploy/systemd/*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 
 # デモ掃除 (毎時)
@@ -246,7 +245,7 @@ rclone ls r2:kibunlog-backups/
 「バックアップは取れているが復元方法が分からない」事故を防ぐため、初回は手動で復元テストを走らせる。
 
 ```bash
-/home/tak/kibunrogu/deploy/scripts/restore-test.sh
+/home/tak/kibunlog/deploy/scripts/restore-test.sh
 # 復元先は kibunrogu_test という別 DB。本番 (kibunrogu) は触らない
 # 各テーブルの行数が表示されれば OK
 ```
@@ -266,9 +265,9 @@ Phase 4: gitleaks → LICENSE → README → rename → public → 実装完了�
 ### 1. 最終バックアップ
 
 ```bash
-sudo /srv/kibunlog/deploy/backup.sh --final
-# ローカルとR2の両方に "final_YYYYMMDD" タグで保存
-rclone sync /srv/backups/kibunlog/ r2:kibunlog-backups/final/
+/home/tak/kibunlog/deploy/scripts/backup.sh
+# /home/tak/backups/kibunlog/ に最新の dump が作成される
+rclone sync /home/tak/backups/kibunlog/ r2:kibunlog-backups/final/
 ```
 
 ### 2. 個人情報削除
