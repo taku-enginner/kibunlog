@@ -11,7 +11,6 @@
 | フレームワーク | Nuxt 3 (Vue 3, Composition API) |
 | 言語 | TypeScript |
 | グラフ | Chart.js + vue-chartjs |
-| 地図 | Google Maps JavaScript API / Places API (New) |
 | テスト | Vitest + @vue/test-utils + happy-dom |
 | カバレッジ | @vitest/coverage-v8 |
 
@@ -102,16 +101,6 @@
 - WiFi判定による自動/手動切替を検討（4G時は警告表示）
 - バッチアップロード（WiFi時にまとめて送信）も選択肢
 
-## 環境変数
-
-`.env`ファイルをプロジェクトルートに作成:
-
-```bash
-GOOGLE_MAPS_API_KEY=your_api_key_here
-```
-
-Google Cloud Consoleで Maps JavaScript API と Places API (New) を有効化すること。
-
 ## 起動方法
 
 ### Mac（ローカル検証）
@@ -129,7 +118,6 @@ docker compose -f docker-compose.mac.yml up -d --build
 ```bash
 # 初回 or docker-compose.yml→debian.ymlリネーム後
 git pull
-# .envにGOOGLE_MAPS_API_KEYを設定
 docker compose -f docker-compose.debian.yml up -d --build
 ```
 

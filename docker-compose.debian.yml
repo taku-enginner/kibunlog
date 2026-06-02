@@ -37,7 +37,6 @@ services:
       # Caddy がパス振り分けで backend に流すので、ブラウザから見える出元と
       # API ベースが食い違ってもよい (同一オリジン扱いではないが動作する)。
       NUXT_PUBLIC_API_BASE: https://${PUBLIC_DOMAIN}
-      NUXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
     depends_on:
       - backend
 

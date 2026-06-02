@@ -6,80 +6,35 @@
         <button class="close-btn" @click="$emit('close')">✕</button>
       </div>
 
-      <div class="mode-tabs">
-        <button class="mode-tab" :class="{ active: mode === 'search' }" @click="mode = 'search'">
-          検索
-        </button>
-        <button class="mode-tab" :class="{ active: mode === 'map' }" @click="switchToMap">
-          マップで選ぶ
+      <!-- 新規追加 -->
+      <div class="add-row">
+        <input
+          v-model="newName"
+          type="text"
+          placeholder="新しい場所名"
+          class="add-input"
+          @keydown.enter="addPlace"
+        />
+        <button class="add-btn" :disabled="!newName.trim() || adding" @click="addPlace">
+          {{ adding ? '...' : '追加' }}
         </button>
       </div>
 
-      <!-- 検索モード -->
-      <template v-if="mode === 'search'">
-        <button class="gps-btn" @click="useCurrentLocation" :disabled="gpsLoading">
-          {{ gpsLoading ? '取得中...' : '📍 現在地を使う' }}
-        </button>
-        <p v-if="gpsError" class="gps-error">{{ gpsError }}</p>
-
-        <div class="search-box">
-          <input
-            v-model="query"
-            type="text"
-            placeholder="場所を検索..."
-            class="search-input"
-            @input="onSearch"
-          />
-        </div>
-
-        <div v-if="searching" class="hint">検索中...</div>
-        <div v-if="searchResults.length > 0" class="results">
-          <button
-            v-for="(r, i) in searchResults"
-            :key="i"
-            class="result-item"
-            @click="selectSearchResult(r)"
-          >
-            <span class="result-name">{{ r.name }}</span>
-            <span v-if="r.address" class="result-address">{{ r.address }}</span>
+      <!-- 既存場所一覧 -->
+      <div v-if="places.length > 0" class="registered">
+        <p class="section-label">登録済みの場所</p>
+        <div
+          v-for="place in places"
+          :key="place.id"
+          class="place-item-row"
+        >
+          <button class="place-item" @click="$emit('select', place)">
+            {{ place.name }}
           </button>
+          <button class="place-delete-btn" @click="deletePlace(place.id)">✕</button>
         </div>
-
-        <div v-if="places.length > 0" class="registered">
-          <p class="section-label">登録済みの場所</p>
-          <div
-            v-for="place in places"
-            :key="place.id"
-            class="place-item-row"
-          >
-            <button class="place-item" @click="$emit('select', place)">
-              {{ place.name }}
-            </button>
-            <button class="place-delete-btn" @click="deletePlace(place.id)">✕</button>
-          </div>
-        </div>
-      </template>
-
-      <!-- マップモード -->
-      <template v-if="mode === 'map'">
-        <button class="gps-btn" @click="moveToCurrentLocation" :disabled="gpsLoading">
-          {{ gpsLoading ? '取得中...' : '📍 現在地に移動' }}
-        </button>
-        <p v-if="gpsError" class="gps-error">{{ gpsError }}</p>
-        <p class="hint">タップして場所を選んでください</p>
-        <div ref="mapContainer" class="pin-map"></div>
-        <div v-if="pinnedLocation" class="pin-confirm">
-          <input
-            v-model="customName"
-            type="text"
-            class="pin-name-input"
-            :placeholder="pinnedName || '読み込み中...'"
-          />
-          <button class="pin-select-btn" :disabled="!pinnedName && !customName" @click="confirmPin">
-            この場所を選択
-          </button>
-        </div>
-      </template>
+      </div>
+      <p v-else class="empty-hint">まだ登録された場所はありません</p>
     </div>
   </div>
 </template>
@@ -101,22 +56,10 @@ const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const { getHeaders } = useAuth()
 const { show: showToast } = useToast()
-const { load: loadGoogleMaps } = useGoogleMaps()
-const { searching, results: searchResults, search, clear } = useGooglePlaces()
 
 const places = ref<Place[]>([])
-const query = ref('')
-const gpsLoading = ref(false)
-const gpsError = ref('')
-const mode = ref<'search' | 'map'>('search')
-
-const mapContainer = ref<HTMLElement | null>(null)
-const pinnedLocation = ref<{ lat: number; lng: number } | null>(null)
-const pinnedName = ref('')
-const customName = ref('')
-let mapInstance: google.maps.Map | null = null
-let pinMarker: google.maps.marker.AdvancedMarkerElement | null = null
-let geocoder: google.maps.Geocoder | null = null
+const newName = ref('')
+const adding = ref(false)
 
 onMounted(async () => {
   try {
@@ -124,134 +67,24 @@ onMounted(async () => {
       headers: getHeaders(),
     })
   } catch {}
-  // Pre-load Google Maps API for search mode
-  await loadGoogleMaps()
 })
 
-function onSearch() {
-  search(query.value)
-}
-
-async function selectSearchResult(r: { name: string; latitude: number; longitude: number }) {
+async function addPlace() {
+  const name = newName.value.trim()
+  if (!name) return
+  adding.value = true
   try {
     const place = await $fetch<Place>(`${apiBase}/places`, {
       method: 'POST',
-      body: { name: r.name, latitude: r.latitude, longitude: r.longitude },
+      body: { name },
       headers: getHeaders(),
     })
     emit('select', place)
-  } catch {}
-}
-
-async function switchToMap() {
-  mode.value = 'map'
-  await nextTick()
-  if (!mapContainer.value || mapInstance) return
-
-  await loadGoogleMaps()
-
-  const center = { lat: 35.68, lng: 139.77 }
-  mapInstance = new google.maps.Map(mapContainer.value, {
-    center,
-    zoom: 13,
-    mapId: 'kibunrogu-place-selector',
-    disableDefaultUI: true,
-    zoomControl: true,
-    gestureHandling: 'greedy',
-  })
-
-  geocoder = new google.maps.Geocoder()
-  ;(window as any).__kibunrogu_map = mapInstance
-
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        mapInstance?.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        mapInstance?.setZoom(15)
-      },
-      () => {},
-      { enableHighAccuracy: false, timeout: 5000 }
-    )
+  } catch {
+    showToast('場所の追加に失敗しました', 'error')
+  } finally {
+    adding.value = false
   }
-
-  mapInstance.addListener('click', (e: google.maps.MapMouseEvent) => {
-    if (e.latLng) placePin(e.latLng.lat(), e.latLng.lng())
-  })
-}
-
-async function placePin(lat: number, lng: number) {
-  pinnedLocation.value = { lat, lng }
-  pinnedName.value = ''
-  customName.value = ''
-
-  if (!mapInstance) return
-
-  if (pinMarker) {
-    pinMarker.position = { lat, lng }
-  } else {
-    const { AdvancedMarkerElement } = await google.maps.importLibrary('marker') as google.maps.MarkerLibrary
-    pinMarker = new AdvancedMarkerElement({
-      map: mapInstance,
-      position: { lat, lng },
-    })
-  }
-
-  if (geocoder) {
-    try {
-      const response = await geocoder.geocode({ location: { lat, lng }, language: 'ja' })
-      if (response.results[0]) {
-        pinnedName.value = response.results[0].formatted_address
-      } else {
-        pinnedName.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-      }
-    } catch {
-      pinnedName.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-    }
-  }
-}
-
-function moveToCurrentLocation() {
-  gpsError.value = ''
-  if (!navigator.geolocation) {
-    gpsError.value = 'このブラウザは位置情報に対応していません'
-    return
-  }
-  gpsLoading.value = true
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { latitude, longitude } = pos.coords
-      mapInstance?.setCenter({ lat: latitude, lng: longitude })
-      mapInstance?.setZoom(16)
-      placePin(latitude, longitude)
-      gpsLoading.value = false
-    },
-    (err) => {
-      gpsLoading.value = false
-      if (err.code === 1) {
-        gpsError.value = '位置情報が許可されていません'
-      } else {
-        gpsError.value = '位置情報を取得できませんでした'
-      }
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
-  )
-}
-
-async function confirmPin() {
-  const name = customName.value.trim() || pinnedName.value
-  if (!pinnedLocation.value || !name) return
-  try {
-    const place = await $fetch<Place>(`${apiBase}/places`, {
-      method: 'POST',
-      body: {
-        name,
-        latitude: pinnedLocation.value.lat,
-        longitude: pinnedLocation.value.lng,
-      },
-      headers: getHeaders(),
-    })
-    emit('select', place)
-  } catch {}
 }
 
 async function deletePlace(placeId: number) {
@@ -266,49 +99,6 @@ async function deletePlace(placeId: number) {
   } catch {
     showToast('削除に失敗しました', 'error')
   }
-}
-
-function useCurrentLocation() {
-  gpsError.value = ''
-  if (!navigator.geolocation) {
-    gpsError.value = 'このブラウザは位置情報に対応していません'
-    return
-  }
-  gpsLoading.value = true
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      try {
-        await loadGoogleMaps()
-        const geocoderLocal = new google.maps.Geocoder()
-        const response = await geocoderLocal.geocode({
-          location: { lat: pos.coords.latitude, lng: pos.coords.longitude },
-          language: 'ja',
-        })
-        const name = response.results[0]?.formatted_address
-          || `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`
-        const place = await $fetch<Place>(`${apiBase}/places`, {
-          method: 'POST',
-          body: { name, latitude: pos.coords.latitude, longitude: pos.coords.longitude },
-          headers: getHeaders(),
-        })
-        emit('select', place)
-      } catch (e) {
-        gpsError.value = '場所の登録に失敗しました'
-      }
-      gpsLoading.value = false
-    },
-    (err) => {
-      gpsLoading.value = false
-      if (err.code === 1) {
-        gpsError.value = '位置情報が許可されていません。ブラウザの設定を確認してください'
-      } else if (err.code === 2) {
-        gpsError.value = '位置情報を取得できませんでした'
-      } else {
-        gpsError.value = '位置情報の取得がタイムアウトしました'
-      }
-    },
-    { enableHighAccuracy: false, timeout: 10000 }
-  )
 }
 </script>
 
@@ -338,7 +128,7 @@ function useCurrentLocation() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .sheet-title {
@@ -355,61 +145,14 @@ function useCurrentLocation() {
   padding: 8px;
 }
 
-.mode-tabs {
+.add-row {
   display: flex;
-  gap: 0;
-  margin-bottom: 14px;
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  overflow: hidden;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.mode-tab {
+.add-input {
   flex: 1;
-  padding: 10px;
-  border: none;
-  background: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6e6e73;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.mode-tab.active {
-  background: #007aff;
-  color: #fff;
-}
-
-.gps-btn {
-  width: 100%;
-  padding: 12px;
-  background: #e8f5e9;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1b5e20;
-  cursor: pointer;
-  margin-bottom: 12px;
-}
-
-.gps-btn:disabled {
-  opacity: 0.5;
-}
-
-.gps-error {
-  font-size: 13px;
-  color: #d32f2f;
-  margin-bottom: 8px;
-}
-
-.search-box {
-  margin-bottom: 12px;
-}
-
-.search-input {
-  width: 100%;
   padding: 12px 14px;
   border: 1px solid #d1d1d6;
   border-radius: 12px;
@@ -418,49 +161,24 @@ function useCurrentLocation() {
   background: #fff;
 }
 
-.search-input:focus {
+.add-input:focus {
   border-color: #007aff;
 }
 
-.hint {
-  text-align: center;
-  color: #6e6e73;
-  font-size: 14px;
-  padding: 8px 0;
-}
-
-.results {
-  margin-bottom: 12px;
-}
-
-.result-item {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  background: #f5f5f7;
+.add-btn {
+  padding: 0 18px;
+  background: #007aff;
+  color: #fff;
   border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-bottom: 6px;
-  line-height: 1.4;
-}
-
-.result-item:active {
-  background: #e0e0e0;
-}
-
-.result-name {
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 15px;
   font-weight: 600;
-  color: #333;
+  cursor: pointer;
 }
 
-.result-address {
-  font-size: 12px;
-  color: #6e6e73;
-  margin-top: 2px;
+.add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .section-label {
@@ -471,7 +189,14 @@ function useCurrentLocation() {
 }
 
 .registered {
-  margin-top: 8px;
+  margin-top: 4px;
+}
+
+.empty-hint {
+  text-align: center;
+  font-size: 13px;
+  color: #8e8e93;
+  padding: 24px 0;
 }
 
 .place-item-row {
@@ -515,51 +240,5 @@ function useCurrentLocation() {
   background: #fee;
   color: #d32f2f;
   border-color: #d32f2f;
-}
-
-.pin-map {
-  width: 100%;
-  height: 300px;
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 12px;
-}
-
-.pin-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pin-name-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d1d1d6;
-  border-radius: 10px;
-  font-size: 15px;
-  text-align: center;
-  outline: none;
-  background: #fff;
-}
-
-.pin-name-input:focus {
-  border-color: #007aff;
-}
-
-.pin-select-btn {
-  width: 100%;
-  padding: 14px;
-  background: #007aff;
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  min-height: 48px;
-}
-
-.pin-select-btn:disabled {
-  opacity: 0.5;
 }
 </style>
