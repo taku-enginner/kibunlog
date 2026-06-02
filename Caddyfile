@@ -17,3 +17,24 @@ debian.tail69d614.ts.net {
 		reverse_proxy frontend:3000
 	}
 }
+
+# Cloudflare Tunnel 経由の公開エンドポイント。
+# Tunnel が TLS 終端しているので、ここは平文 :80 で受ける。
+# 認証は基本的にアプリ内 JWT に任せ、register/demo の濫用は Cloudflare WAF Rate Limiting で抑える。
+http://{$PUBLIC_DOMAIN} {
+	handle /auth/* {
+		reverse_proxy backend:8000
+	}
+
+	handle /moods* {
+		reverse_proxy backend:8000
+	}
+
+	handle /places* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

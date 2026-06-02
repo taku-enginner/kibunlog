@@ -20,6 +20,8 @@ export default defineNuxtConfig({
       title: 'きぶんログ',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
+        // 転職活動用ポートフォリオとして「リンク経由でのみ来てほしい」運用。検索エンジンは除外。
+        { name: 'robots', content: 'noindex, nofollow' },
       ],
     },
   },

@@ -32,7 +32,11 @@ services:
   frontend:
     build: ./frontend
     environment:
-      NUXT_PUBLIC_API_BASE: https://debian.tail69d614.ts.net:8443
+      # 公開ドメイン経由でアクセスされる前提に統一。
+      # Tailscale 経由 (debian.tail69d614.ts.net:8443) でアクセスしたときは
+      # Caddy がパス振り分けで backend に流すので、ブラウザから見える出元と
+      # API ベースが食い違ってもよい (同一オリジン扱いではないが動作する)。
+      NUXT_PUBLIC_API_BASE: https://${PUBLIC_DOMAIN}
       NUXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
     depends_on:
       - backend
@@ -41,6 +45,11 @@ services:
     image: caddy:2
     ports:
       - "8443:443"
+      # Cloudflare Tunnel から平文 HTTP で受ける口。Tunnel が TLS 終端する。
+      # ホストの 8080 は shutdown-api が使用中なので 8081 を使う。
+      - "127.0.0.1:8081:80"
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./certs:/etc/caddy/certs:ro

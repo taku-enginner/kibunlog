@@ -9,3 +9,9 @@ __pycache__/
 devbox.d/
 devbox.lock
 scripts/screenshots/
+
+# Tailscale TLS 証明書 (秘密鍵含む。絶対にコミットしない)
+certs/
+
+# Playwright/Chromium 動作確認のために置いた .deb 群。リポジトリには含めない
+*.deb
