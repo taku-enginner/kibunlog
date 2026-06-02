@@ -22,6 +22,13 @@ export default defineNuxtConfig({
         // 転職活動用ポートフォリオとして「リンク経由でのみ来てほしい」運用。検索エンジンは除外。
         { name: 'robots', content: 'noindex, nofollow' },
       ],
+      script: [
+        {
+          src: 'https://static.cloudflareinsights.com/beacon.min.js',
+          defer: true,
+          'data-cf-beacon': '{"token": "3938880534044d83856c3c7a901b135e"}',
+        },
+      ],
     },
   },
 })
